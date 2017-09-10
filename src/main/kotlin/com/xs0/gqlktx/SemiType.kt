@@ -1,8 +1,12 @@
 package com.xs0.gqlktx
 
+import io.vertx.core.Future
+import io.vertx.core.Handler
+import java.util.concurrent.CompletableFuture
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
+import kotlin.reflect.full.isSuperclassOf
 
 enum class SemiTypeKind {
     COLLECTION_OF,
@@ -14,6 +18,11 @@ enum class SemiTypeKind {
 private val primitiveArrayTypes = setOf(
     ByteArray::class, ShortArray::class, IntArray::class, LongArray::class,
     FloatArray::class, DoubleArray::class, BooleanArray::class, CharArray::class
+)
+
+private val ignoredTypes = listOf(
+    Handler::class, Future::class, CompletableFuture::class,
+    java.util.concurrent.Future::class
 )
 
 class SemiType(
@@ -50,8 +59,13 @@ class SemiType(
                     klass in primitiveArrayTypes ->
                         SemiType(nullable, SemiTypeKind.PRIMITIVE_ARRAY, null, klass, type)
 
-                    klass != Any::class ->
+                    klass != Any::class -> {
+                        for (ignored in ignoredTypes)
+                            if (ignored.isSuperclassOf(klass))
+                                return null
+
                         SemiType(nullable, SemiTypeKind.OBJECT, null, klass, type)
+                    }
 
                     else ->
                         null
@@ -64,4 +78,19 @@ class SemiType(
 
     val isBoolean: Boolean
         get() = kind == SemiTypeKind.OBJECT && klass == Boolean::class
+
+    fun withNullable(): SemiType {
+        if (nullable)
+            return this
+
+        return SemiType(true, kind, inner, klass, sourceType)
+    }
+
+    override fun toString(): String {
+        if (inner == null) {
+            return "$kind($klass)${ if (nullable) "?" else "" }"
+        } else {
+            return "$kind($inner)${ if (nullable) "?" else "" }"
+        }
+    }
 }

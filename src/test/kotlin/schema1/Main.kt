@@ -1,22 +1,30 @@
 package schema1
 
-import com.xs0.dbktx.conn.DbConn
-import com.xs0.dbktx.conn.DbConnectorImpl
+import com.xs0.gqlktx.ann.GqlField
+import com.xs0.gqlktx.findContextTypes
+import com.xs0.gqlktx.findFields
 import io.vertx.core.*
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.asyncsql.MySQLClient
 import kotlinx.coroutines.experimental.Unconfined
 import kotlinx.coroutines.experimental.launch
+import java.math.BigDecimal
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 
 fun main(args: Array<String>) {
     if (System.currentTimeMillis() > 0) {
-        findFields(TestClass::class, findContextTypes(ContextProvider::class))
+        findContextTypes(ContextProvider::class).forEach { (klass, invokable) ->
+            println("${klass} ${invokable.name}")
+        }
+
+        findFields(TestClass::class, findContextTypes(ContextProvider::class)).forEach { (name, field) ->
+            println("${name} -> ${field.name} ${field.isAsync} ${field.publicType} ${field::class}")
+        }
         return
     }
-
+/*
     val vertx = Vertx.vertx()
     val server = vertx.createHttpServer()
     println("${TestSchema.numberOfTables} tables initialized")
@@ -65,20 +73,35 @@ fun main(args: Array<String>) {
         }
     })
 
-    server.listen(8888)
+    server.listen(8888)*/
 }
 
+
+class SomeInput(
+    val firstName: String,
+    var lastName: String,
+    age: Int?,
+    ageAgain: Int
+) {
+    val ageFourth: Int = age ?: 10
+
+    val ageThird: Int = age ?: 99
+
+    val allAges34: Int
+        get() = ageFourth + ageThird
+
+    var someOtherThing: String? = "abc"
+
+    var bubu: BigDecimal
+        get() = BigDecimal.TEN
+        set(value) { lastName += value.toPlainString() }
+}
 
 
 class ContextProvider(
     val vertx: Vertx,
     var verticle: Verticle?
 ) {
-
-    fun db(): DbConn {
-        throw UnsupportedOperationException("Not implemented yet")
-    }
-
     override fun equals(other: Any?): Boolean {
         return super.equals(other)
     }
@@ -93,10 +116,12 @@ class ContextProvider(
 
 
 class TestClass {
+    @GqlField
     fun normalFunc(): String {
         return "normalFunc"
     }
 
+    @GqlField
     suspend fun suspendFunc(vertx: Vertx): String {
         return suspendCoroutine { cont ->
             vertx.setTimer(100, { timerId ->
@@ -105,12 +130,14 @@ class TestClass {
         }
     }
 
-    fun asyncHandlerFunc(vertx: Vertx, handler: Handler<AsyncResult<String>>) {
+    @GqlField
+    fun asyncHandlerFunc(vertx: Vertx, handler: Handler<AsyncResult<List<Set<Array<String?>>?>>>) {
         vertx.setTimer(150, { timerId ->
-            handler.handle(Future.succeededFuture("asyncHandlerFunc " + timerId))
+            handler.handle(Future.succeededFuture(listOf(setOf(arrayOf<String?>("asyncHandlerFunc " + timerId)))))
         })
     }
 
+    @GqlField
     fun futureFunc(vertx: Vertx): Future<String> {
         val res = Future.future<String>()
         vertx.setTimer(50, { timerId ->
@@ -119,6 +146,7 @@ class TestClass {
         return res
     }
 
+    @GqlField
     val normalProp: String
         get() = "normalProp"
 }
