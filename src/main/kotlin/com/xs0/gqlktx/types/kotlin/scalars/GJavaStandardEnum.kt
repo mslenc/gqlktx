@@ -8,13 +8,13 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSuperclassOf
 
-class GJavaStandardEnum<CTX, ENUM : Enum<ENUM>>(type: KType, gqlType: GEnumType, private val valuesByName: Map<String, ENUM>) : GJavaScalarLikeType<CTX>(type, gqlType) {
+class GJavaStandardEnum<CTX>(type: KType, gqlType: GEnumType, private val valuesByName: Map<String, Any>) : GJavaScalarLikeType<CTX>(type, gqlType) {
     init {
         if (!Enum::class.isSuperclassOf(type.classifier as? KClass<*> ?: String::class))
             throw IllegalArgumentException("Not an enum type: " + type)
     }
 
-    override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): ENUM {
+    override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Any {
         val s: String
         if (value is String || value is CharSequence) {
             s = value.toString()

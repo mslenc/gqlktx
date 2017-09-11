@@ -1,6 +1,7 @@
 package com.xs0.gqlktx.types.kotlin
 
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.types.gql.GBaseType
 import kotlin.reflect.KClass
 import kotlin.reflect.KType

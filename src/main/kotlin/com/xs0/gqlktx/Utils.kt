@@ -109,10 +109,6 @@ fun getNullValue(type: Type): Any? {
     return null
 }
 
-interface GqlValueValidator {
-    fun validateAndNormalize(incoming: Any): Any
-}
-
 private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
 
 private var fromBase64: IntArray = run {
@@ -159,32 +155,20 @@ fun validateBase64(s: String): String? {
 
 private val arrayClasses = ConcurrentHashMap<Class<*>,Class<*>>()
 
-fun classOfArray(klass: Class<*>): Class<*> {
-    return arrayClasses.computeIfAbsent(klass) { k -> Array.newInstance(k, 0).javaClass }
-}
-
-fun toConcreteType(type: Type): Class<*> {
-    if (type is Class<*>)
-        return type
-
-    if (type is ParameterizedType)
-        return toConcreteType(type.rawType)
-
-    if (type is GenericArrayType)
-        return classOfArray(toConcreteType(type.genericComponentType))
-
-    throw IllegalStateException("Can't convert $type to a concrete class")
-}
-
 fun <K, V> appendLists(target: MutableMap<K, MutableList<V>>, source: MutableMap<K, MutableList<V>>) {
     for ((key, value) in source) {
         target.merge(key, value) { targetList, sourceList ->
-            if (targetList == null) {
-                sourceList
-            } else {
-                targetList.addAll(sourceList)
-                targetList
-            }
+            targetList.addAll(sourceList)
+            targetList
         }
     }
+}
+
+fun String?.trimToNull(): String? {
+    if (this == null)
+        return null
+    val trimmed = this.trim()
+    if (trimmed.isEmpty())
+        return null
+    return trimmed
 }

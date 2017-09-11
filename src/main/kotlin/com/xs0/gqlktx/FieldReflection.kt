@@ -1,7 +1,10 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.ann.GQLArg
 import com.xs0.gqlktx.ann.GqlField
 import com.xs0.gqlktx.ann.GqlIgnore
+import com.xs0.gqlktx.dom.Value
+import com.xs0.gqlktx.parser.GraphQLParser
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Handler
@@ -19,6 +22,10 @@ enum class ParamKind {
 
 val KParameter.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
 val KCallable<*>.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
+val KClass<*>.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
+val KCallable<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
+val KClass<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
+
 
 class ParamInfo<CTX> private constructor(
     val name: String,
@@ -182,6 +189,13 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
         params += parsedParam
 
+        var parsedDefault: Value? =
+            param.findAnnotation<GQLArg>()?.let {
+                it.defaultsTo.trimToNull()?.let {
+                    GraphQLParser.parseValue(it)
+                }
+            }
+
         when (parsedParam.kind) {
             ParamKind.THIS,
             ParamKind.CONTEXT,
@@ -190,7 +204,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
             }
 
             ParamKind.PUBLIC -> {
-                publicParams[parsedParam.name] = PublicParamInfo(parsedParam.name, parsedParam.semiType!!)
+                publicParams[parsedParam.name] = PublicParamInfo(parsedParam.name, parsedParam.semiType!!, parsedDefault)
             }
 
             ParamKind.HANDLER -> {

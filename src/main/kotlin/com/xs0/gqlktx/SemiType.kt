@@ -7,6 +7,7 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
 import kotlin.reflect.full.isSuperclassOf
+import kotlin.reflect.full.withNullability
 
 enum class SemiTypeKind {
     COLLECTION_OF,
@@ -92,5 +93,50 @@ class SemiType(
         } else {
             return "$kind($inner)${ if (nullable) "?" else "" }"
         }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as SemiType
+
+        if (nullable != other.nullable) return false
+        if (kind != other.kind) return false
+        if (inner != other.inner) return false
+        if (klass != other.klass) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = nullable.hashCode()
+        result = 31 * result + kind.hashCode()
+        result = 31 * result + (inner?.hashCode() ?: 0)
+        result = 31 * result + (klass?.hashCode() ?: 0)
+        return result
+    }
+
+    fun getBaseClass(): KClass<*> {
+        when (kind) {
+            SemiTypeKind.COLLECTION_OF,
+            SemiTypeKind.ARRAY_OF -> {
+                return inner!!.getBaseClass()
+            }
+            SemiTypeKind.PRIMITIVE_ARRAY,
+            SemiTypeKind.OBJECT -> {
+                return klass!!
+            }
+        }
+    }
+
+    val isNotNull: Boolean
+        get() = !sourceType.isMarkedNullable
+
+    fun nullableType(): SemiType {
+        if (sourceType.isMarkedNullable)
+            return this
+
+        return SemiType(true, kind, inner, klass, sourceType.withNullability(true))
     }
 }

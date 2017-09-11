@@ -26,6 +26,10 @@ class SyncInvokableFunction<in CTX>(
             function.call(ctx)
         }
     }
+
+    override fun toString(): String {
+        return "InvokableFunction($function)"
+    }
 }
 
 class SyncInvokableUnboundProperty<in CTX>(
@@ -37,6 +41,10 @@ class SyncInvokableUnboundProperty<in CTX>(
     override fun invoke(ctx: CTX): Any? {
         return property.get()
     }
+
+    override fun toString(): String {
+        return "InvokableUnboundProperty($property)"
+    }
 }
 
 class SyncInvokableBoundProperty<in CTX>(
@@ -47,5 +55,9 @@ class SyncInvokableBoundProperty<in CTX>(
 ) : SyncInvokable<CTX> {
     override fun invoke(ctx: CTX): Any? {
         return property.get(ctx)
+    }
+
+    override fun toString(): String {
+        return "InvokableBoundProperty($property)"
     }
 }

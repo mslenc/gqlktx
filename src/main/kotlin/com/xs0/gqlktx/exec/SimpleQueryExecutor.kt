@@ -5,35 +5,38 @@ import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.parser.GraphQLParser
 import com.xs0.gqlktx.parser.Token
 import com.xs0.gqlktx.schema.Schema
-import com.xs0.gqlktx.schema.builder.OutputMethodInfo
-import com.xs0.gqlktx.schema.builder.ParamInfo
 import com.xs0.gqlktx.schema.builder.TypeKind
-import com.xs0.gqlktx.schema.intro.GqlIntroSchema
-import com.xs0.gqlktx.schema.intro.GqlIntroType
 import com.xs0.gqlktx.types.gql.*
 import com.xs0.gqlktx.types.kotlin.*
 import com.xs0.gqlktx.utils.JsonSetter
 import com.xs0.gqlktx.utils.QueryInput
-import com.xs0.gqlktx.utils.SimpleCountDown
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
-import io.vertx.core.Handler
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import kotlin.reflect.KClass
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
-import java.lang.reflect.Method
 import java.util.*
-import java.util.concurrent.atomic.AtomicReference
 
 import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
-import com.xs0.gqlktx.schema.builder.ParamInfo.ParamKind.PUBLIC
+import com.xs0.gqlktx.utils.awaitAll
 import kotlinx.coroutines.experimental.*
 import mu.KLogging
+import kotlin.reflect.KCallable
+import kotlin.reflect.full.createType
+import kotlin.reflect.full.isSuperclassOf
+
+interface QueryExecutor {
+    suspend fun <SCHEMA: Any, CTX>
+    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput): JsonObject
+}
+
+object SimpleQueryExecutor : QueryExecutor {
+    override suspend fun <SCHEMA: Any, CTX>
+    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput): JsonObject {
+        return SimpleQueryState(schema, rootObject, context, queryInput).executeRequest()
+    }
+}
 
 internal class SimpleQueryState<SCHEMA: Any, CTX>(
         private val schema: Schema<SCHEMA, CTX>,
@@ -55,7 +58,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     init {
         this.rawQuery = queryInput.query
         this.opName = queryInput.opName
-        this.rawVariables = queryInput.variables
+        this.rawVariables = queryInput.variables ?: JsonObject()
     }
 
     suspend fun executeRequest(): JsonObject {
@@ -82,7 +85,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    suspend fun doExecuteRequest(): JsonObject {
+    suspend fun doExecuteRequest(): JsonObject? {
         parseQuery()
         makeIndex()
         val op = operation
@@ -94,7 +97,10 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         if (op.type === QUERY) {
             val queryRoot = schema.queryRoot
             val initialObject = queryRoot.invoke(rootObject)!!
-            val initialType = schema.getJavaType(queryRoot.type) as GJavaObjectType<CTX>
+            var initialType = schema.getJavaType(queryRoot.type)
+            if (initialType is GJavaNotNullType)
+                initialType = initialType.innerType
+            initialType as GJavaObjectType<CTX>
 
             return doExecuteQuery(op, coercedVariableValues, initialObject, initialType)
         }
@@ -110,17 +116,17 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         throw QueryException("No subscriptions supported (yet)")
     }
 
-    private suspend fun doExecuteQuery(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject {
+    private suspend fun doExecuteQuery(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
         return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root())
     }
 
-    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath): JsonObject {
+    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath): JsonObject? {
         val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
-        val result = JsonObject()
-        val futures = ArrayList<Job>()
+
+        val futures = ArrayList<Deferred<Pair<String?, Any?>>>()
 
         for ((responseKey, fields) in groupedFieldSet) {
-            futures.add(launch(Unconfined) {
+            futures.add(async(Unconfined) {
                 val fieldName = fields[0].fieldName
                 val innerPath = parentPath.subField(fieldName)
                 val theValue: Any
@@ -130,15 +136,15 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (fieldName.startsWith("__")) {
                     if ("__typename" == fieldName) {
                         theValue = objectType.gqlType.name
-                        fieldMethod = INTRO_TYPENAME
+                        fieldMethod = schema.INTRO_TYPENAME
                     } else if ("__schema" == fieldName && parentPath.isRoot) {
                         theValue = schema.introspector()
-                        fieldMethod = INTRO_SCHEMA
+                        fieldMethod = schema.INTRO_SCHEMA
                     } else if ("__type" == fieldName && parentPath.isRoot) {
                         theValue = schema.introspector()
-                        fieldMethod = INTRO_TYPE
+                        fieldMethod = schema.INTRO_TYPE
                     } else {
-                        return@launch
+                        return@async Pair(null, null)
                     }
                 } else {
                     theValue = objectValue
@@ -146,7 +152,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 }
 
                 if (fieldMethod == null)
-                    return@launch
+                    return@async Pair(null, null)
 
                 fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
 
@@ -161,33 +167,32 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (res == null && !fieldType.isNullAllowed())
                     throw FieldException("Couldn't follow schema due to child error", parentPath, null)
 
-                if (res == null) {
-                    result.putNull(responseKey)
-                } else {
-                    result.put(responseKey, JsonSetter.transform(res))
-                }
+                Pair(responseKey, res)
             })
         }
 
-        var failed = false
-        var error: Throwable? = null
+        try {
+            val results = awaitAll(futures)
+            val json = JsonObject()
+            for (p : Pair<String?, Any?>? in results) {
+                if (p == null)
+                    continue
 
-        for (i in futures.indices) {
-            val job = futures[i]
-            if (failed) {
-                job.cancel(CancellationException("Other non-null field failed, so no point in continuing"))
-            } else {
-                job.join()
-                job.getCompletionException()
+                val key = p.first ?: continue
+                val value = p.second
+                if (value == null) {
+                    json.putNull(key)
+                } else {
+                    json.put(key, JsonSetter.transform(value))
+                }
             }
+            return json
+        } catch (e: Throwable) {
+            return null
         }
-
-        async
-
-        return result
     }
 
-    private suspend fun executeSelectionSetSerially(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject): JsonObject {
+    private suspend fun executeSelectionSetSerially(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject): JsonObject? {
         val fieldPath = FieldPath.root()
 
         val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
@@ -197,7 +202,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             try {
                 val fieldName = fields[0].fieldName
                 val fieldMethod = objectType.fields[fieldName] ?: continue
-                val fieldType = schema.getJavaType(fieldMethod.type)
+                val fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
 
                 logger.trace("Field execution for {} starting", responseKey)
 
@@ -232,21 +237,17 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
 
     private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, variableValues: JsonObject, fieldPath: FieldPath): Any? {
-        val field = fields[0]
-        val argumentValues = coerceArgumentValues(field, variableValues, fieldMethod, fieldPath)
-
-        val resolvedValue: Any
         try {
-            resolvedValue = fieldMethod.invoke(objectValue, context, argumentValues)
+            val field = fields[0]
+            val argumentValues = coerceArgumentValues(field, variableValues, fieldMethod, fieldPath)
+            val resolvedValue = fieldMethod.invoke(objectValue, context, argumentValues)
             return completeValue(fieldType, fieldType.gqlType, fields, resolvedValue, variableValues, fieldPath)
-        } catch (e: FieldException) {
-            handler.handle(Future.failedFuture(e))
-        } catch (e: Exception) {
-            handler.handle(Future.failedFuture(FieldException(e.message, fieldPath, null)))
+        } catch (e: Throwable) {
+            throw FieldException(e.message, fieldPath, null)
         }
     }
 
-    private fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: JsonObject, fieldPath: FieldPath): Any? {
+    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: JsonObject, fieldPath: FieldPath): Any? {
         var fieldType = fieldType
         var gqlType = gqlType
         val kind = gqlType.kind
@@ -261,47 +262,36 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             if (subRes != null)
                 return subRes
 
-            throw FieldException("null received on a non-null field", fieldPath, null)
+            throw IllegalStateException("null received on a non-null field")
         } else if (result == null) {
             return null
         } else if (kind == TypeKind.LIST) {
             val listType = fieldType as GJavaListLikeType<CTX>
             val innerType = listType.elementType
 
-            val jsonList = JsonArray()
             val iterator: Iterator<*>
             try {
                 iterator = listType.getIterator(result)
-            } catch (e: Exception) {
-                throw FieldException("Failed to create iterator", fieldPath, null)
+            } catch (e: Throwable) {
+                logger.error("Failed to create iterator for $innerType", e)
+                throw IllegalStateException("Failed to create iterator", e)
             }
 
-            var i = 0
+            val futures = ArrayList<Deferred<Any?>>()
+            var index = 0
             while (iterator.hasNext()) {
-                val elDone = remain.step()
-                jsonList.addNull()
-                val index = i
-                try {
-                    completeValue(innerType, innerType.gqlType, fields, iterator.next(), variableValues, fieldPath.listElement(i), { elRes ->
-                        try {
-                            if (elRes.succeeded()) {
-                                jsonList.list.set(index, JsonSetter.transform(elRes.result()))
-                            } else {
-                                handleException(elRes.cause())
-                            }
-                        } finally {
-                            elDone.run()
-                        }
-                    })
-                } catch (e: Exception) {
-                    handleException(e)
-                    elDone.run()
-                }
+                val el = iterator.next()
+                val idx = index++
+                var elPath = fieldPath.listElement(idx)
 
-                i++
+                futures.add(async(Unconfined) {
+                    completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)
+                })
             }
 
-            remain.stepCreationDone()
+            val results = awaitAll(futures)
+
+            return JsonArray(results.map { JsonSetter.transform(it) })
         } else if (kind == TypeKind.SCALAR || kind == TypeKind.ENUM) {
             fieldType as GJavaScalarLikeType<CTX>
             return fieldType.toJson(result)
@@ -329,11 +319,11 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     }
 
     private fun resolveAbstractType(fieldType: GJavaImplementableType<CTX>, result: Any): GJavaObjectType<CTX> {
-        val resultClass = result.javaClass
+        val resultClass = result::class
 
         for (impl in fieldType.implementations) {
-            if (impl.isAssignableFrom(resultClass)) {
-                return schema.getJavaType(impl) as GJavaObjectType<CTX>
+            if (impl.isSuperclassOf(resultClass)) {
+                return schema.getJavaType(impl.createType()) as GJavaObjectType<CTX>
             }
         }
         throw IllegalStateException("result of $resultClass did not resolve to any known implementation")
@@ -364,7 +354,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                         }
                     } else {
                         try {
-                            value = javaType.getFromJson(varValue, inputVarParser!!)
+                            value = javaType.getFromJson(varValue, inputVarParser)
                         } catch (e: Exception) {
                             throw FieldException("Failed to parse field: " + e.message, fieldPath, null)
                         }
@@ -379,7 +369,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (paramInfo.parsedDefault != null) {
                     val `val`: Any
                     try {
-                        `val` = argumentType.getFromJson(paramInfo.parsedDefault, inputVarParser!!)
+                        `val` = argumentType.getFromJson(paramInfo.parsedDefault, inputVarParser)
                     } catch (e: Exception) {
                         throw FieldException("Couldn't use default value for argument " + argumentName + ": " + e.message, fieldPath, null)
                     }
@@ -425,7 +415,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return coercedValues
     }
 
-    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject {
+    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
         return executeSelectionSetSerially(op.selectionSet, queryType, initialValue, variableValues)
     }
 
@@ -470,7 +460,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 }
                 val fragmentSelectionSet = selection.selectionSet
                 val fragmentGroupedFieldSet = collectFields(objectType, fragmentSelectionSet, variableValues, visitedFragments)
-                appendLists<String, SelectionField>(groupedFields, fragmentGroupedFieldSet)
+                appendLists(groupedFields, fragmentGroupedFieldSet)
             }
         }
 
@@ -539,7 +529,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     private fun getType(typeDef: TypeDef): GType {
         if (typeDef is NamedType) {
             val typeName = typeDef.name
-            return schema.getGQLBaseType(typeName) ?: throw QueryException("Unknown type " + typeName)
+            return schema.getGQLBaseType(typeName)
         } else return if (typeDef is NotNullType) {
             getType(typeDef.inner).notNull()
         } else if (typeDef is ListType) {
@@ -604,41 +594,14 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         this.query = GraphQLParser.parseQueryDoc(rawQuery)
     }
 
-    companion object : KLogging() {
-        private val INTRO_SCHEMA: OutputMethodInfo<*>
-        private val INTRO_TYPE: OutputMethodInfo<*>
-        private val INTRO_TYPENAME: OutputMethodInfo<*>
+    companion object : KLogging()
+}
 
-        init {
-            try {
-                INTRO_SCHEMA = OutputMethodInfo(
-                        GqlIntroSchema::class.java.getMethod("self"),
-                        "__schema",
-                        arrayOfNulls(0),
-                        false,
-                        GqlIntroSchema::class.java
-                )
 
-                val typeMethod = GqlIntroSchema::class.java.getMethod("type", String::class.java)
-                INTRO_TYPE = OutputMethodInfo(
-                        typeMethod,
-                        "__type",
-                        arrayOf(ParamInfo.publicParam("name", typeMethod.genericParameterTypes[0], null, null)),
-                        false,
-                        GqlIntroType::class.java
-                )
-
-                INTRO_TYPENAME = OutputMethodInfo(
-                        String::class.java.getMethod("toString"),
-                        "__typename",
-                        arrayOfNulls(0),
-                        false,
-                        String::class.java
-                )
-            } catch (e: Exception) {
-                throw Error(e)
-            }
-
-        }
+fun <T: Any> KClass<T>.findMethod(name: String): KCallable<*> {
+    for (member in this.members) {
+        if (member.name == name)
+            return member
     }
+    throw IllegalArgumentException("Couldn't find $name in $this")
 }

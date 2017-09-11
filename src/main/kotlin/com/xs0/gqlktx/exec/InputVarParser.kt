@@ -9,9 +9,8 @@ import kotlin.reflect.KType
 class InputVarParser<CTX>(
         private val queryCtx: CTX,
         private val inputVariables: JsonObject,
-        private val schema: Schema<CTX>) {
+        private val schema: Schema<*, CTX>) {
 
-    @Throws(Exception::class)
     fun getCoercedVar(jsonValue: Any?, type: KType): Any? {
         val javaType = schema.getJavaType(type)
 

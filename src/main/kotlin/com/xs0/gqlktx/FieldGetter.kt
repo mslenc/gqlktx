@@ -1,5 +1,6 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.dom.Value
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Handler
@@ -10,7 +11,8 @@ import kotlin.reflect.KCallable
 
 class PublicParamInfo(
     val name: String,
-    val type: SemiType
+    val type: SemiType,
+    val parsedDefault: Value?
 )
 
 interface FieldGetter<in CTX> {
@@ -18,7 +20,7 @@ interface FieldGetter<in CTX> {
     val name: String
     val publicParams: Map<String, PublicParamInfo>
 
-    suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any?
+    suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any?
 }
 
 class FieldGetterRegularFunction<in CTX>(
@@ -33,7 +35,7 @@ class FieldGetterRegularFunction<in CTX>(
                forEach { throw IllegalArgumentException(it.toString()) }
     }
 
-    override suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any? {
+    override suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         val args = arrayOfNulls<Any?>(params.size)
 
         for (i in params.indices) {
@@ -69,7 +71,7 @@ class FieldGetterCoroutine<in CTX>(
             throw Error("There should be exactly one continuation parameter")
     }
 
-    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any? {
+    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutine { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 
@@ -108,7 +110,7 @@ class FieldGetterVertxHandler<in CTX>(
             throw Error("There should be exactly one handler parameter")
     }
 
-    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any? {
+    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutine { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 
@@ -144,7 +146,7 @@ class FieldGetterVertxFuture<in CTX>(
                 forEach { throw IllegalArgumentException(it.toString()) }
     }
 
-    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any? {
+    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutine { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 
@@ -186,7 +188,7 @@ class FieldGetterCompletableFuture<in CTX>(
                 forEach { throw IllegalArgumentException(it.toString()) }
     }
 
-    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any>): Any? {
+    suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutine { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 

@@ -48,7 +48,7 @@ class GJavaCollectionType<CTX>(listClass: KType, elementType: GJavaType<CTX>, gq
             } else if (Queue::class.isSuperclassOf(klass)) {
                 LinkedBlockingQueue::class
             } else {
-                throw IllegalArgumentException("Don't know a concrete class implementing " + klass)
+                ArrayList::class
             }
         } else {
             klass
