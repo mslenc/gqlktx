@@ -28,16 +28,16 @@ class GJavaArrayType<CTX>(type: KType, elementType: GJavaType<CTX>, gqlType: GTy
         return javaArray.newInstance(concreteElementType, size)
     }
 
-    override fun getListSize(array: Any): Int {
-        return javaArray.getLength(array)
+    override fun getListSize(list: Any): Int {
+        return javaArray.getLength(list)
     }
 
-    override fun getIterator(array: Any): Iterator<*> {
-        return (array as kotlin.Array<*>).iterator()
+    override fun getIterator(list: Any): Iterator<*> {
+        return (list as kotlin.Array<*>).iterator()
     }
 
-    override fun appendListElement(array: Any, index: Int, value: Any) {
-        javaArray.set(array, index, value)
+    override fun appendListElement(list: Any, index: Int, value: Any) {
+        javaArray.set(list, index, value)
     }
 
     override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): Any {

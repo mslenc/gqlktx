@@ -70,7 +70,7 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
         return this // used for simple implementation
     }
 
-    fun type(name: String): GqlIntroType? {
-        return schema.getGQLBaseType(name)?.introspector()
+    fun type(name: String): GqlIntroType {
+        return schema.getGQLBaseType(name).introspector()
     }
 }
