@@ -178,3 +178,11 @@ fun Optional<String>?.trimToNull(): String? {
         return null
     return orElse(null).trimToNull()
 }
+
+fun Double.ensureFinite(): Double {
+    if (java.lang.Double.isFinite(this)) {
+        return this
+    } else {
+        throw IllegalArgumentException("Can't use NaNs or infinities")
+    }
+}
