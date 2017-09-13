@@ -172,3 +172,9 @@ fun String?.trimToNull(): String? {
         return null
     return trimmed
 }
+
+fun Optional<String>?.trimToNull(): String? {
+    if (this == null)
+        return null
+    return orElse(null).trimToNull()
+}
