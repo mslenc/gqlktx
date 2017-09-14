@@ -22,6 +22,7 @@ import com.xs0.gqlktx.dom.OpType.QUERY
 import com.xs0.gqlktx.utils.awaitAll
 import kotlinx.coroutines.experimental.*
 import mu.KLogging
+import kotlin.collections.HashSet
 import kotlin.reflect.KCallable
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSuperclassOf
@@ -420,9 +421,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     }
 
     fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, variableValues: JsonObject, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
-        var visitedFragments = visitedFragments
-        if (visitedFragments == null)
-            visitedFragments = HashSet()
+        var visitedFragments = visitedFragments ?: HashSet()
 
         val groupedFields = LinkedHashMap<String, MutableList<SelectionField>>()
 
