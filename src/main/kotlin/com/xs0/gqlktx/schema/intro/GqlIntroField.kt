@@ -16,7 +16,7 @@ class GqlIntroField(private val gField: GField) {
         get() = gField.argumentsForIntrospection
 
     val type: GqlIntroType
-        get() = gField.type.introspector()
+        get() = gField.type.introspector
 
     // TODO
     val isDeprecated: Boolean

@@ -6,23 +6,18 @@ import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 
 class GScalarType(name: String, private val varValueValidator: (Any)->Any) : GValueType(name) {
+    override val kind: TypeKind
+        get() = TypeKind.SCALAR
 
-    override fun getKind(): TypeKind {
-        return TypeKind.SCALAR
-    }
-
-    @Throws(QueryException::class)
     override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
         if (raw.containsKey(key))
             out.put(key, coerce(raw.getValue(key)))
     }
 
-    @Throws(QueryException::class)
     override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
         out.add(coerce(raw.getValue(index))!!)
     }
 
-    @Throws(QueryException::class)
     private fun coerce(value: Any?): Any? {
         if (value != null) {
             val coerced: Any

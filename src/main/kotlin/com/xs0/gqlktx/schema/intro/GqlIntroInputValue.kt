@@ -24,14 +24,14 @@ class GqlIntroInputValue {
     constructor(arg: GArgument) {
         this.name = arg.name
         this.description = null // TODO
-        this.type = arg.type.introspector()
+        this.type = arg.type.introspector
         this._defaultValue = arg.defaultValue
     }
 
     constructor(value: GField) {
         this.name = value.name
         this.description = null // TODO
-        this.type = value.type.introspector()
+        this.type = value.type.introspector
         this._defaultValue = null
     }
 }

@@ -14,16 +14,12 @@ import java.util.Collections.singletonList
 
 @GraphQLObject("__Schema")
 class GqlIntroSchema(private val schema: Schema<*, *>) {
-    val directives: List<GqlIntroDirective>
-
-    init {
-        this.directives = buildDirectives()
-    }
+    val directives: List<GqlIntroDirective> = buildDirectives()
 
     private fun buildDirectives(): List<GqlIntroDirective> {
         val res = ArrayList<GqlIntroDirective>()
 
-        val boolNotNull = schema.getGQLBaseType("Boolean").notNull().introspector()
+        val boolNotNull = schema.getGQLBaseType("Boolean").notNull().introspector
 
         res.add(
                 GqlIntroDirective(
@@ -51,16 +47,16 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
             val res = ArrayList<GqlIntroType>()
 
             for (type in schema.allBaseTypes)
-                res.add(type.introspector())
+                res.add(type.introspector)
 
             return res
         }
 
     val queryType: GqlIntroType
-        get() = schema.getJavaType(schema.queryRoot.type).gqlType.introspector()
+        get() = schema.getJavaType(schema.queryRoot.type).gqlType.introspector
 
     val mutationType: GqlIntroType?
-        get() = if (schema.mutationRoot == null) null else schema.getJavaType(schema.mutationRoot.type).gqlType.introspector()
+        get() = if (schema.mutationRoot == null) null else schema.getJavaType(schema.mutationRoot.type).gqlType.introspector
 
     // TODO
     val subscriptionType: GqlIntroType?
@@ -71,6 +67,6 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
     }
 
     fun type(name: String): GqlIntroType {
-        return schema.getGQLBaseType(name).introspector()
+        return schema.getGQLBaseType(name).introspector
     }
 }

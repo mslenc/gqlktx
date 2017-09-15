@@ -99,7 +99,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
     }
 
     @Throws(ParseException::class)
-    private fun processNumber(row: Int, col: Int, signChar: Int, firstDigit: Int): Token<out Number> {
+    private fun processNumber(row: Int, col: Int, signChar: Int, firstDigit: Int): Token<Number> {
         var firstDigit = firstDigit
         val raw = StringBuilder()
         val `val` = StringBuilder()

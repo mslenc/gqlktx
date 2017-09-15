@@ -24,7 +24,7 @@ class GJavaNodeId<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(t
         try {
             return NodeId.fromPublicID(string)
         } catch (e: IllegalArgumentException) {
-            throw ValidationException(e.message)
+            throw ValidationException(e.message!!)
         }
     }
 

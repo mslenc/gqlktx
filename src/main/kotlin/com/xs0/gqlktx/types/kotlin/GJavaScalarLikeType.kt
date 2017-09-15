@@ -19,7 +19,7 @@ abstract class GJavaScalarLikeType<CTX>(type: KType, gqlType: GType) : GJavaType
                     }
 
                     else ->
-                        throw IllegalStateException("Expected a value type instead of " + gqlType.getGqlTypeString())
+                        throw IllegalStateException("Expected a value type instead of " + gqlType.gqlTypeString)
                 }
 
             }

@@ -19,8 +19,8 @@ class GJavaUUID<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(typ
 
         try {
             return UUID.fromString(string)
-        } catch (e: IllegalArgumentException) {
-            throw ValidationException(e.message)
+        } catch (e: Exception) {
+            throw ValidationException(e.message ?: "Couldn't parse as UUID")
         }
     }
 

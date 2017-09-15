@@ -313,7 +313,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                     throw SchemaException("An implementation of " + gtype.gqlTypeString + " (" + impl + ") does not have an object type, but is " + gqlType.gqlTypeString)
                 }
             }
-            gtype.implementations = gqlImpls
+            gtype.setImpls(gqlImpls)
         })
 
         latentChecks.add({ fillInFields(fields, gqlFields) })
@@ -369,7 +369,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                     throw SchemaException("A member of " + result.gqlTypeString + " (" + impl + ") does not have an object type, but is " + gqlType?.gqlTypeString)
                 }
             }
-            result.members = gqlImpls
+            result.setMembers(gqlImpls)
         })
 
         return javaType

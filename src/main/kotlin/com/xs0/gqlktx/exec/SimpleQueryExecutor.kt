@@ -8,7 +8,6 @@ import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.*
 import com.xs0.gqlktx.types.kotlin.*
-import com.xs0.gqlktx.utils.JsonSetter
 import com.xs0.gqlktx.utils.QueryInput
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
@@ -20,6 +19,7 @@ import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
 import com.xs0.gqlktx.utils.awaitAll
+import com.xs0.gqlktx.utils.transformForJson
 import kotlinx.coroutines.experimental.*
 import mu.KLogging
 import kotlin.collections.HashSet
@@ -184,7 +184,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (value == null) {
                     json.putNull(key)
                 } else {
-                    json.put(key, JsonSetter.transform(value))
+                    json.put(key, transformForJson(value))
                 }
             }
             return json
@@ -215,19 +215,19 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 }
 
                 if (subRes != null) {
-                    output.map.put(responseKey, JsonSetter.transform(subRes))
+                    output.map.put(responseKey, transformForJson(subRes))
                 } else
                 if (fieldType.isNullAllowed()) {
                     output.map.put(responseKey, null)
                 } else {
-                    handleException(FieldException("Field $fieldName is supposed to be not null, which it can't be, so we're bailing", fieldPath, null))
+                    handleException(FieldException("Field $fieldName is supposed to be not null, which it can't be due to an error, so we're bailing", fieldPath, null))
                     return null
                 }
             } catch (e: Exception) {
                 if (e is FieldException) {
                     handleException(e)
                 } else {
-                    handleException(FieldException(e.message, fieldPath.subField(responseKey), null))
+                    handleException(FieldException(e.message ?: "Unknown error", fieldPath.subField(responseKey), null))
                 }
             }
         }
@@ -244,7 +244,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             val resolvedValue = fieldMethod.invoke(objectValue, context, argumentValues)
             return completeValue(fieldType, fieldType.gqlType, fields, resolvedValue, variableValues, fieldPath)
         } catch (e: Throwable) {
-            throw FieldException(e.message, fieldPath, null)
+            throw FieldException(e.message ?: "Unknown error", fieldPath, null)
         }
     }
 
@@ -292,7 +292,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             val results = awaitAll(futures)
 
-            return JsonArray(results.map { JsonSetter.transform(it) })
+            return JsonArray(results.map { transformForJson(it) })
         } else if (kind == TypeKind.SCALAR || kind == TypeKind.ENUM) {
             fieldType as GJavaScalarLikeType<CTX>
             return fieldType.toJson(result)

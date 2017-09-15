@@ -24,19 +24,18 @@ class GqlIntroType(private val type: GType) {
     }
 
     val interfaces: List<GqlIntroType>?
-        get() = if (type.kind !== TypeKind.OBJECT) null else (type as GObjectType).interfacesForIntrospection
+        get() = (type as? GObjectType)?.interfacesForIntrospection
 
     val possibleTypes: List<GqlIntroType>?
-        get() = if (type.kind !== TypeKind.UNION) null else (type as GUnionType).membersForIntrospection
+        get() = (type as? GUnionType)?.membersForIntrospection
 
     fun getEnumValues(@GQLArg(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroEnumValue>? {
-        return if (type.kind !== TypeKind.ENUM) null else (type as GEnumType).getValuesForIntrospection(includeDeprecated)
-
+        return (type as? GEnumType)?.getValuesForIntrospection(includeDeprecated)
     }
 
     val inputFields: List<GqlIntroInputValue>?
-        get() = if (type.kind !== TypeKind.INPUT_OBJECT) null else (type as GInputObjType).inputFieldsForIntrospection
+        get() = if (type.kind != TypeKind.INPUT_OBJECT) null else (type as GInputObjType).inputFieldsForIntrospection
 
     val ofType: GqlIntroType?
-        get() = (type as? GWrappingType)?.wrappedType?.introspector()
+        get() = (type as? GWrappingType)?.wrappedType?.introspector
 }

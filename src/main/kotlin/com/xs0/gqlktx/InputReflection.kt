@@ -111,7 +111,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
             continue
         }
 
-        val type = SemiType.create(prop.valueParameters.first().type)
+        val type = SemiType.create(prop.setter.valueParameters.first().type)
         if (type == null) {
             throwIf(forced) { "$prop has a setter type that is unsupported at this time" }
             continue
