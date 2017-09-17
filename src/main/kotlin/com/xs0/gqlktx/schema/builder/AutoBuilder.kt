@@ -140,7 +140,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     internal fun setUpIntrospectionTypes() {
         allowIntrospectionNames = true
         try {
-            scanTypes(GqlIntroSchema::class.nullableType(), false)
+            scanTypes(GqlIntroSchema::class.nonNullType(), false)
         } finally {
             allowIntrospectionNames = false
         }

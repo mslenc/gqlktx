@@ -67,7 +67,10 @@ class Schema<SCHEMA, CTX>(
     }
 
     fun getJavaType(type: KType): GJavaType<CTX> {
-        return types[type] ?: throw UnsupportedOperationException("For some reason, type $type is not supported")
+        val res = types[type]
+        if (res != null)
+            return res
+        throw UnsupportedOperationException("For some reason, type $type is not supported")
     }
 
     fun getGQLBaseType(name: String): GBaseType {

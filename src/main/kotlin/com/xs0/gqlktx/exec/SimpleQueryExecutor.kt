@@ -155,7 +155,12 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (fieldMethod == null)
                     return@async Pair(null, null)
 
-                fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
+                try {
+                    fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
+                } catch (e: Throwable) {
+                    e.printStackTrace()
+                    throw e
+                }
 
                 var res: Any?
                 try {
@@ -189,6 +194,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             }
             return json
         } catch (e: Throwable) {
+            handleException(e)
             return null
         }
     }
