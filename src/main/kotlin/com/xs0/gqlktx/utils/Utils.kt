@@ -4,6 +4,8 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+class Maybe<out T> (val value: T)
+
 private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
 private val fromBase64: IntArray = run {
     val fromBase64 = IntArray('z'.toInt() + 1, { -1 })
