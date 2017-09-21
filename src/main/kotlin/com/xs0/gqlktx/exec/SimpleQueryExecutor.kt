@@ -78,7 +78,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         if (e is QueryException) {
             addError(e.message ?: return, null, null)
         } else if (e is FieldException) {
-            addError(e.message ?: "Unknown error", e.path, e.location)
+            addError(e.message ?: "Unknown error", e.path, null)
         } else if (e is Error) {
             addError("An error occurred: " + e, null, null)
         } else {
@@ -175,7 +175,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 }
 
                 if (res == null && !fieldType.isNullAllowed())
-                    throw FieldException("Couldn't follow schema due to child error", parentPath, null)
+                    throw FieldException("Couldn't follow schema due to child error", parentPath)
 
                 Pair(responseKey, res)
             })
@@ -230,14 +230,14 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (fieldType.isNullAllowed()) {
                     output.map.put(responseKey, null)
                 } else {
-                    handleException(FieldException("Field $fieldName is supposed to be not null, which it can't be due to an error, so we're bailing", fieldPath, null))
+                    handleException(FieldException("Field $fieldName is supposed to be not null, which it can't be due to an error, so we're bailing", fieldPath))
                     return null
                 }
             } catch (e: Exception) {
                 if (e is FieldException) {
                     handleException(e)
                 } else {
-                    handleException(FieldException(e.message ?: "Unknown error", fieldPath.subField(responseKey), null))
+                    handleException(FieldException(e.message ?: "Unknown error", fieldPath.subField(responseKey), e))
                 }
             }
         }
@@ -264,7 +264,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             if (err == null)
                 err = "Unknown error " + e::class.simpleName
 
-            throw FieldException(err, fieldPath, null)
+            throw FieldException(err, fieldPath, e)
         }
     }
 
@@ -344,7 +344,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
         for (impl in fieldType.implementations) {
             if (impl.isSuperclassOf(resultClass)) {
-                return schema.getJavaType(impl.createType()) as GJavaObjectType<CTX>
+                return schema.getJavaType(impl.createType(nullable=true)) as GJavaObjectType<CTX>
             }
         }
         throw IllegalStateException("result of $resultClass did not resolve to any known implementation")
@@ -371,13 +371,13 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                         if (javaType.isNullAllowed()) {
                             value = null
                         } else {
-                            throw FieldException("Forbidden null value", fieldPath, null)
+                            throw FieldException("Forbidden null value", fieldPath)
                         }
                     } else {
                         try {
                             value = javaType.getFromJson(varValue, inputVarParser)
                         } catch (e: Exception) {
-                            throw FieldException("Failed to parse field: " + e.message, fieldPath, null)
+                            throw FieldException("Failed to parse field: " + e.message, fieldPath, e)
                         }
 
                     }
@@ -392,19 +392,19 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                     try {
                         `val` = argumentType.getFromJson(paramInfo.parsedDefault, inputVarParser)
                     } catch (e: Exception) {
-                        throw FieldException("Couldn't use default value for argument " + argumentName + ": " + e.message, fieldPath, null)
+                        throw FieldException("Couldn't use default value for argument " + argumentName + ": " + e.message, fieldPath, e)
                     }
 
                     coercedValues.put(argumentName, `val`)
                     continue
                 } else if (argumentType is GJavaNotNullType<*>) {
-                    throw FieldException("Missing value for not null argument " + argumentName, fieldPath, null)
+                    throw FieldException("Missing value for not null argument " + argumentName, fieldPath)
                 }
             }
 
             if (valueOrVar == null || valueOrVar is ValueNull) {
                 if (argumentType is GJavaNotNullType<*>) {
-                    throw FieldException("Argument $argumentName is not null, but null was provided as the value", fieldPath, null)
+                    throw FieldException("Argument $argumentName is not null, but null was provided as the value", fieldPath)
                 } else {
                     coercedValues.put(argumentName, null)
                     continue
@@ -422,12 +422,12 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 try {
                     value = valueType.getFromJson(jsonValue, inputVarParser)
                 } catch (e: Exception) {
-                    throw FieldException("Failed to parse value: " + e.message, fieldPath, null)
+                    throw FieldException("Failed to parse value: " + e.message, fieldPath, e)
                 }
             }
             if (value == null) {
                 if (!valueType.isNullAllowed()) {
-                    throw FieldException("Null value", fieldPath, null)
+                    throw FieldException("Null value", fieldPath)
                 }
             }
             coercedValues.put(argumentName, value)
