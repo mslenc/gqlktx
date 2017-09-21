@@ -74,7 +74,7 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         } else {
             defaultVal = null
         }
-        out.put(name.value, VariableDefinition(name, typeDef, defaultVal!!))
+        out.put(name.value, VariableDefinition(name, typeDef, defaultVal))
     }
 
     @Throws(ParseException::class)
@@ -204,7 +204,7 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return res
     }
 
-    inline fun <reified T> cast(token: Token<Any>): Token<T> {
+    inline fun <reified T: Any> cast(token: Token<Any>): Token<T> {
         if (token.value is T) {
             @Suppress("UNCHECKED_CAST")
             return token as Token<T>
@@ -268,7 +268,7 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
     }
 
     @Throws(ParseException::class)
-    private inline fun <reified T> expect(type: Token.Type): Token<T> {
+    private inline fun <reified T: Any> expect(type: Token.Type): Token<T> {
         val token = tokens.next<T>()
         if (token.type == type && token.value is T)
             return token
@@ -289,7 +289,7 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
     }
 
     @Throws(ParseException::class)
-    private fun <T> maybe(type: Token.Type): Token<T>? {
+    private fun <T: Any> maybe(type: Token.Type): Token<T>? {
         return if (tokens.peek<Any>().type === type) {
             tokens.next<Any>() as Token<T>
         } else {

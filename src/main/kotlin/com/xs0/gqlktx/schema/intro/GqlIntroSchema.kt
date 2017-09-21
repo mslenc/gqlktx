@@ -10,6 +10,7 @@ import java.util.Arrays
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.FIELD
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.FRAGMENT_SPREAD
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.INLINE_FRAGMENT
+import com.xs0.gqlktx.types.kotlin.GJavaNotNullType
 import java.util.Collections.singletonList
 
 @GraphQLObject("__Schema")
@@ -25,7 +26,7 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
                 GqlIntroDirective(
                         "if",
                         "Directs the executor to include this field or fragment only when the `if` argument is true.",
-                        Arrays.asList(FIELD, FRAGMENT_SPREAD, INLINE_FRAGMENT),
+                        listOf(FIELD, FRAGMENT_SPREAD, INLINE_FRAGMENT),
                         listOf(GqlIntroInputValue("if", "Included when true.", boolNotNull, null))
                 )
         )
@@ -34,7 +35,7 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
                 GqlIntroDirective(
                         "skip",
                         "Directs the executor to skip this field or fragment when the `if` argument is true.",
-                        Arrays.asList(FIELD, FRAGMENT_SPREAD, INLINE_FRAGMENT),
+                        listOf(FIELD, FRAGMENT_SPREAD, INLINE_FRAGMENT),
                         listOf(GqlIntroInputValue("if", "Skipped when true.", boolNotNull, null))
                 )
         )
@@ -53,10 +54,25 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
         }
 
     val queryType: GqlIntroType
-        get() = schema.getJavaType(schema.queryRoot.type).gqlType.introspector
+        get() {
+            var type = schema.getJavaType(schema.queryRoot.type)
+            if (type is GJavaNotNullType)
+                type = type.innerType
+
+            return type.gqlType.introspector
+        }
 
     val mutationType: GqlIntroType?
-        get() = if (schema.mutationRoot == null) null else schema.getJavaType(schema.mutationRoot.type).gqlType.introspector
+        get() {
+            if (schema.mutationRoot == null)
+                return null
+
+            var type = schema.getJavaType(schema.mutationRoot.type)
+            if (type is GJavaNotNullType)
+                type = type.innerType
+
+            return type.gqlType.introspector
+        }
 
     // TODO
     val subscriptionType: GqlIntroType?

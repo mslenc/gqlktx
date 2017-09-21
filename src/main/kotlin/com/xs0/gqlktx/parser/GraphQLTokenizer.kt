@@ -8,7 +8,7 @@ import com.xs0.gqlktx.parser.Token.Type.EOF
 class GraphQLTokenizer(private val chars: CharStream) {
     private var peek: Token<*>? = null
 
-    operator fun <T> next(): Token<T> {
+    operator fun <T: Any> next(): Token<T> {
         try {
             return peek()
         } finally {
@@ -16,10 +16,11 @@ class GraphQLTokenizer(private val chars: CharStream) {
         }
     }
 
-    fun <T> peek(): Token<T> {
+    fun <T: Any> peek(): Token<T> {
         if (peek == null) {
             peek = findNextToken()
         }
+        @Suppress("UNCHECKED_CAST")
         return peek as Token<T>
     }
 
@@ -102,12 +103,12 @@ class GraphQLTokenizer(private val chars: CharStream) {
     private fun processNumber(row: Int, col: Int, signChar: Int, firstDigit: Int): Token<Number> {
         var firstDigit = firstDigit
         val raw = StringBuilder()
-        val `val` = StringBuilder()
+        val value = StringBuilder()
 
         if (signChar > 0)
             raw.appendCodePoint(signChar)
         if (signChar == '-'.toInt())
-            `val`.appendCodePoint(signChar)
+            value.appendCodePoint(signChar)
 
         var hadDigits = false
         var hadZeroFirst = false
@@ -118,7 +119,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
             firstDigit = 0
             if (d > 0) {
                 raw.appendCodePoint(d)
-                `val`.appendCodePoint(d)
+                value.appendCodePoint(d)
 
                 if (hadZeroFirst)
                     throw ParseException("Numbers can't start with 0", row, col)
@@ -137,14 +138,14 @@ class GraphQLTokenizer(private val chars: CharStream) {
 
         if (chars.consume { c: Int -> GChar.isDot(c) } > 0) {
             raw.append('.')
-            `val`.append('.')
+            value.append('.')
             isFloat = true
             hadDigits = false
             while (!chars.end()) {
                 val d = chars.consume { c: Int -> GChar.isDigit(c) }
                 if (d > 0) {
                     raw.appendCodePoint(d)
-                    `val`.appendCodePoint(d)
+                    value.appendCodePoint(d)
                     hadDigits = true
                 } else {
                     break
@@ -158,14 +159,14 @@ class GraphQLTokenizer(private val chars: CharStream) {
         var e = chars.consume { c: Int -> GChar.isExponentStart(c) }
         if (e > 0) {
             raw.appendCodePoint(e)
-            `val`.appendCodePoint(e)
+            value.appendCodePoint(e)
             isFloat = true
             hadDigits = false
 
             val pm = chars.consume { c: Int -> GChar.isPlusOrMinus(c) }
             if (pm > 0) {
                 raw.appendCodePoint(pm)
-                `val`.appendCodePoint(pm)
+                value.appendCodePoint(pm)
                 e = pm // for error message below
             }
 
@@ -173,7 +174,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
                 val d = chars.consume { c: Int -> GChar.isDigit(c) }
                 if (d > 0) {
                     raw.appendCodePoint(d)
-                    `val`.appendCodePoint(d)
+                    value.appendCodePoint(d)
                     hadDigits = true
                 } else {
                     break
@@ -186,7 +187,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
 
         try {
             if (isFloat) {
-                val d = java.lang.Double.valueOf(`val`.toString())
+                val d = java.lang.Double.valueOf(value.toString())
                 if (d.isInfinite())
                     throw ParseException("Infinity not allowed", row, col)
                 if (d.isNaN())
@@ -194,7 +195,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
 
                 return Token(row, col, FLOAT, raw.toString(), d)
             } else {
-                val l = java.lang.Long.parseLong(`val`.toString())
+                val l = java.lang.Long.parseLong(value.toString())
                 return if (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE) {
                     Token(row, col, INTEGER, raw.toString(), l.toInt())
                 } else {
@@ -215,7 +216,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
         if (a < 0 || b < 0)
             throw ParseException("Incomplete spread operator ...", row, col)
 
-        return Token(row, col, SPREAD, "...", Unit)
+        return Token<Unit>(row, col, SPREAD, "...", Unit)
     }
 
     @Throws(ParseException::class)

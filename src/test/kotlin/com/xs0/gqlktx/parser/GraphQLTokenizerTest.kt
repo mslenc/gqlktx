@@ -23,7 +23,7 @@ class GraphQLTokenizerTest {
         val eof = tokenizer.next<Any>()
         assertNotNull(eof)
         assertEquals(EOF, eof.type)
-        assertEquals(null, eof.value)
+        assertEquals(Unit, eof.value)
     }
 
     @Throws(ParseException::class)
@@ -77,19 +77,19 @@ class GraphQLTokenizerTest {
         for (name in names)
             testSingle(name, NAME, name)
 
-        testSingle("(", LPAREN, null)
-        testSingle(")", RPAREN, null)
-        testSingle("{", LCURLY, null)
-        testSingle("}", RCURLY, null)
-        testSingle("[", LBRACK, null)
-        testSingle("]", RBRACK, null)
-        testSingle("|", PIPE, null)
-        testSingle(":", COLON, null)
-        testSingle("...", SPREAD, null)
-        testSingle("@", AT, null)
-        testSingle("!", EXCL, null)
-        testSingle("$", DOLLAR, null)
-        testSingle("=", EQ, null)
+        testSingle("(", LPAREN, Unit)
+        testSingle(")", RPAREN, Unit)
+        testSingle("{", LCURLY, Unit)
+        testSingle("}", RCURLY, Unit)
+        testSingle("[", LBRACK, Unit)
+        testSingle("]", RBRACK, Unit)
+        testSingle("|", PIPE, Unit)
+        testSingle(":", COLON, Unit)
+        testSingle("...", SPREAD, Unit)
+        testSingle("@", AT, Unit)
+        testSingle("!", EXCL, Unit)
+        testSingle("$", DOLLAR, Unit)
+        testSingle("=", EQ, Unit)
     }
 
 }

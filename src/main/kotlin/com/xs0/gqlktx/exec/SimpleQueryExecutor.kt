@@ -109,7 +109,10 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         if (op.type === MUTATION) {
             val mutationRoot = schema.mutationRoot ?: throw QueryException("No mutations supported (yet)")
             val initialObject = mutationRoot.invoke(rootObject)!!
-            val initialType = schema.getJavaType(mutationRoot.type) as GJavaObjectType<CTX>
+            var initialType = schema.getJavaType(mutationRoot.type)
+            if (initialType is GJavaNotNullType)
+                initialType = initialType.innerType
+            initialType as GJavaObjectType<CTX>
 
             return doExecuteMutation(op, coercedVariableValues, initialObject, initialType)
         }
@@ -166,6 +169,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 try {
                     res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
                 } catch (e: Exception) {
+                    logger.error("executeField failed", e)
                     res = null
                     handleException(e)
                 }
@@ -241,7 +245,13 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return output
     }
 
-
+    private fun extractMessage(e: Throwable): String? {
+        if (e.message != null)
+            return e.message!!
+        if (e.cause != null && e.cause !== e)
+            return extractMessage(e.cause!!)
+        return null
+    }
 
     private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, variableValues: JsonObject, fieldPath: FieldPath): Any? {
         try {
@@ -250,7 +260,11 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             val resolvedValue = fieldMethod.invoke(objectValue, context, argumentValues)
             return completeValue(fieldType, fieldType.gqlType, fields, resolvedValue, variableValues, fieldPath)
         } catch (e: Throwable) {
-            throw FieldException(e.message ?: "Unknown error", fieldPath, null)
+            var err = extractMessage(e)
+            if (err == null)
+                err = "Unknown error " + e::class.simpleName
+
+            throw FieldException(err, fieldPath, null)
         }
     }
 
@@ -289,7 +303,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             while (iterator.hasNext()) {
                 val el = iterator.next()
                 val idx = index++
-                var elPath = fieldPath.listElement(idx)
+                val elPath = fieldPath.listElement(idx)
 
                 futures.add(async(Unconfined) {
                     completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)

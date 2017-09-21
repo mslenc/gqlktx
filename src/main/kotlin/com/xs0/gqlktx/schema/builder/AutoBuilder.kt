@@ -17,6 +17,8 @@ import java.util.*
 import com.xs0.gqlktx.schema.builder.TypeKind.*
 import com.xs0.gqlktx.utils.NodeId
 import mu.KLogging
+import java.time.LocalDate
+import java.time.LocalDateTime
 import kotlin.collections.HashMap
 import kotlin.collections.LinkedHashMap
 import kotlin.reflect.full.createType
@@ -94,6 +96,8 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val BOOLEAN = getOrCreateScalarType("Boolean", ScalarUtils::validateBoolean)
         val ID = getOrCreateScalarType("ID", ScalarUtils::validateID)
         val BYTES = getOrCreateScalarType("Bytes", ScalarUtils::validateBytes)
+        val DATE = getOrCreateScalarType("Date", ScalarUtils::validateDate)
+        val DATETIME = getOrCreateScalarType("DateTime", ScalarUtils::validateDateTime)
 
         val javaByte = maybeAdd(GJavaByte(Byte::class.nonNullType(), INT.notNull()))
         val javaShort = maybeAdd(GJavaShort(Short::class.nonNullType(), INT.notNull()))
@@ -135,6 +139,12 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         maybeAdd(GJavaNodeId(NodeId::class.nullableType(), ID))
         maybeAdd(GJavaNodeId(NodeId::class.nonNullType(), ID.notNull()))
+
+        maybeAdd(GJavaDate(LocalDate::class.nullableType(), DATE))
+        maybeAdd(GJavaDate(LocalDate::class.nonNullType(), DATE.notNull()))
+
+        maybeAdd(GJavaDateTime(LocalDateTime::class.nullableType(), DATETIME))
+        maybeAdd(GJavaDateTime(LocalDateTime::class.nonNullType(), DATETIME.notNull()))
     }
 
     internal fun setUpIntrospectionTypes() {
@@ -410,7 +420,12 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
 
-        val reflected = reflectInputObject(baseClass)
+        val reflected = try {
+            reflectInputObject(baseClass)
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to reflect on $baseClass", e)
+        }
+
         val gqlFields = LinkedHashMap<String, GField>()
 
         val gtype = GInputObjType(name, gqlFields)

@@ -4,9 +4,13 @@ import com.xs0.gqlktx.dom.Value
 import io.vertx.core.AsyncResult
 import io.vertx.core.Future
 import io.vertx.core.Handler
+import mu.KLogging
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
+import kotlin.coroutines.experimental.intrinsics.suspendCoroutineOrReturn
+import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 import kotlin.reflect.KCallable
 
 class PublicParamInfo(
@@ -52,7 +56,11 @@ class FieldGetterRegularFunction<in CTX>(
             }
         }
 
-        return callable.call(*args)
+        try {
+            return callable.call(*args)
+        } catch (e: InvocationTargetException) {
+            throw e.targetException
+        }
     }
 }
 
@@ -72,7 +80,7 @@ class FieldGetterCoroutine<in CTX>(
     }
 
     suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
-        return suspendCoroutine { cont ->
+        return suspendCoroutineOrReturn { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 
             for (i in params.indices) {
@@ -90,8 +98,16 @@ class FieldGetterCoroutine<in CTX>(
                 }
             }
 
-            callable.call(*args)
+            try {
+                callable.call(*args)
+            } catch (e: InvocationTargetException) {
+                throw e.targetException
+            }
         }
+    }
+
+    companion object : KLogging() {
+
     }
 }
 
@@ -129,7 +145,11 @@ class FieldGetterVertxHandler<in CTX>(
                 }
             }
 
-            callable.call(*args)
+            try {
+                callable.call(*args)
+            } catch (e: InvocationTargetException) {
+                throw e.targetException
+            }
         }
     }
 }
@@ -165,7 +185,14 @@ class FieldGetterVertxFuture<in CTX>(
             }
 
             @Suppress("UNCHECKED_CAST")
-            val future: Future<Any?>? = callable.call(*args) as? Future<Any?>
+            val future: Future<Any?>? =
+                try {
+                    callable.call(*args)
+                } catch (e: InvocationTargetException) {
+                    throw e.targetException
+                }
+            as? Future<Any?>
+
             if (future == null) {
                 cont.resumeWithException(IllegalStateException("Future was not returned from $callable"))
             } else {
@@ -207,7 +234,11 @@ class FieldGetterCompletableFuture<in CTX>(
             }
 
             @Suppress("UNCHECKED_CAST")
-            val future: CompletableFuture<Any?>? = callable.call(*args) as? CompletableFuture<Any?>
+            val future: CompletableFuture<Any?>? = try {
+                callable.call(*args)
+            } catch (e: InvocationTargetException) {
+                throw e.targetException
+            } as? CompletableFuture<Any?>
 
             if (future == null) {
                 cont.resumeWithException(IllegalStateException("Future was not returned from $callable"))

@@ -144,10 +144,9 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
                 } else {
                     throw IllegalArgumentException("NodeId didn't start with typeId (a string)")
                 }
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 throw IllegalArgumentException("Failed to read encodedId", e)
             }
-
         }
     }
 }

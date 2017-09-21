@@ -1,10 +1,8 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.ann.GqlIgnore
 import kotlin.reflect.*
-import kotlin.reflect.full.extensionReceiverParameter
-import kotlin.reflect.full.instanceParameter
-import kotlin.reflect.full.isSuperclassOf
-import kotlin.reflect.full.valueParameters
+import kotlin.reflect.full.*
 
 typealias ContextTypes<CTX> = Map<KClass<*>, SyncInvokable<CTX>>
 
@@ -149,6 +147,9 @@ fun ignoreContextFunc(member: KCallable<*>, ctx: KClass<*>): Boolean {
         return true
 
     if (member is KProperty2<*, *, *>)
+        return true
+
+    if (member.findAnnotation<GqlIgnore>() != null)
         return true
 
     val thisParam = member.instanceParameter ?: member.extensionReceiverParameter

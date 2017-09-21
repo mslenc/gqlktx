@@ -22,9 +22,9 @@ abstract class Value : ValueOrVar() {
 }
 
 abstract class ValueScalar<out T: Any>
-protected constructor(protected val token: Token<*>, val value: T) : Value() {
+protected constructor(protected val token: Token<*>, val value: T?) : Value() {
 
-    override fun toJson(): Any {
+    override fun toJson(): Any? {
         return value
     }
 
@@ -40,7 +40,7 @@ class ValueFloat(token: Token<Double>) : ValueScalar<Double>(token, token.value)
 
 class ValueString(token: Token<String>) : ValueScalar<String>(token, token.value) {
     override fun toString(sb: StringBuilder) {
-        sb.append('"').append(value.replace("\"", "\\\"")).append('"')
+        sb.append('"').append(value!!.replace("\"", "\\\"")).append('"')
     }
 }
 
@@ -50,7 +50,7 @@ class ValueEnum(token: Token<String>) : ValueScalar<String>(token, token.value) 
     }
 }
 
-class ValueNull(token: Token<Unit>) : ValueScalar<Unit>(token, Unit) {
+class ValueNull(token: Token<String>) : ValueScalar<Unit>(token, null) {
     override fun toString(sb: StringBuilder) {
         sb.append("null")
     }
