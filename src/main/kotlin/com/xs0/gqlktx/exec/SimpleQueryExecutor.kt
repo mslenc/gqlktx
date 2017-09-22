@@ -22,6 +22,7 @@ import com.xs0.gqlktx.utils.awaitAll
 import com.xs0.gqlktx.utils.transformForJson
 import kotlinx.coroutines.experimental.*
 import mu.KLogging
+import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import kotlin.reflect.KCallable
 import kotlin.reflect.full.createType
@@ -124,47 +125,81 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root())
     }
 
-    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath): JsonObject? {
+    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
+        return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root(), concurrent=false)
+    }
+
+    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath, concurrent: Boolean = true): JsonObject? {
         val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
 
-        val futures = ArrayList<Deferred<Pair<String?, Any?>>>()
+        val jsonResult = JsonObject()
 
+        val futures: ArrayList<Deferred<Pair<String, Any?>?>>?
+        if (concurrent) {
+            futures = ArrayList()
+        } else {
+            futures = null
+        }
+
+        nextField@
         for ((responseKey, fields) in groupedFieldSet) {
-            futures.add(async(Unconfined) {
-                val fieldName = fields[0].fieldName
-                val innerPath = parentPath.subField(fieldName)
-                val theValue: Any
-                val fieldMethod: FieldGetter<CTX>?
-                val fieldType: GJavaType<CTX>?
+            val fieldName = fields[0].fieldName
+            val innerPath = parentPath.subField(fieldName)
+            val theValue: Any
+            val fieldMethod: FieldGetter<CTX>?
+            val fieldType: GJavaType<CTX>?
 
-                if (fieldName.startsWith("__")) {
-                    if ("__typename" == fieldName) {
+            if (fieldName.startsWith("__")) {
+                when {
+                    fieldName == "__typename" -> {
                         theValue = objectType.gqlType.name
                         fieldMethod = schema.INTRO_TYPENAME
-                    } else if ("__schema" == fieldName && parentPath.isRoot) {
+                    }
+
+                    fieldName == "__schema" && parentPath.isRoot -> {
                         theValue = schema.introspector()
                         fieldMethod = schema.INTRO_SCHEMA
-                    } else if ("__type" == fieldName && parentPath.isRoot) {
+                    }
+
+                    fieldName == "__type"&& parentPath.isRoot -> {
                         theValue = schema.introspector()
                         fieldMethod = schema.INTRO_TYPE
-                    } else {
-                        return@async Pair(null, null)
                     }
-                } else {
-                    theValue = objectValue
-                    fieldMethod = objectType.fields[fieldName]
+
+                    else -> continue@nextField
                 }
+            } else {
+                theValue = objectValue
+                fieldMethod = objectType.fields[fieldName]
+            }
 
-                if (fieldMethod == null)
-                    return@async Pair(null, null)
+            if (fieldMethod == null)
+                continue
 
-                try {
-                    fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
-                } catch (e: Throwable) {
-                    e.printStackTrace()
-                    throw e
-                }
+            try {
+                fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
+            } catch (e: Throwable) {
+                logger.error("Failed to obtain java type", e)
+                throw e
+            }
 
+            if (concurrent) {
+                futures!!.add(async(Unconfined) {
+                    var res: Any?
+                    try {
+                        res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
+                    } catch (e: Exception) {
+                        logger.error("executeField failed", e)
+                        res = null
+                        handleException(e)
+                    }
+
+                    if (res == null && !fieldType.isNullAllowed())
+                        throw FieldException("Couldn't follow schema due to child error", parentPath)
+
+                    return@async Pair(responseKey, res)
+                })
+            } else {
                 var res: Any?
                 try {
                     res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
@@ -177,72 +212,24 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (res == null && !fieldType.isNullAllowed())
                     throw FieldException("Couldn't follow schema due to child error", parentPath)
 
-                Pair(responseKey, res)
-            })
-        }
-
-        try {
-            val results = awaitAll(futures)
-            val json = JsonObject()
-            for (p : Pair<String?, Any?>? in results) {
-                if (p == null)
-                    continue
-
-                val key = p.first ?: continue
-                val value = p.second
-                if (value == null) {
-                    json.putNull(key)
-                } else {
-                    json.put(key, transformForJson(value))
-                }
+                putInJson(responseKey, res, jsonResult)
             }
-            return json
-        } catch (e: Throwable) {
-            handleException(e)
-            return null
         }
-    }
 
-    private suspend fun executeSelectionSetSerially(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject): JsonObject? {
-        val fieldPath = FieldPath.root()
-
-        val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
-        val output = JsonObject()
-
-        for ((responseKey, fields) in groupedFieldSet.entries) {
+        if (futures != null) {
+            assert(concurrent)
             try {
-                val fieldName = fields[0].fieldName
-                val fieldMethod = objectType.fields[fieldName] ?: continue
-                val fieldType = schema.getJavaType(fieldMethod.publicType.sourceType)
-
-                logger.trace("Field execution for {} starting", responseKey)
-
-                var subRes: Any? = null
-                try {
-                    subRes = executeField(objectValue, fields, fieldType, fieldMethod, variableValues, fieldPath.subField(responseKey))
-                } catch (e: Exception) {
-                    handleException(e)
+                val results = awaitAll(futures)
+                for ((key, value) in results.filterNotNull()) {
+                    putInJson(key, value, jsonResult)
                 }
-
-                if (subRes != null) {
-                    output.map.put(responseKey, transformForJson(subRes))
-                } else
-                if (fieldType.isNullAllowed()) {
-                    output.map.put(responseKey, null)
-                } else {
-                    handleException(FieldException("Field $fieldName is supposed to be not null, which it can't be due to an error, so we're bailing", fieldPath))
-                    return null
-                }
-            } catch (e: Exception) {
-                if (e is FieldException) {
-                    handleException(e)
-                } else {
-                    handleException(FieldException(e.message ?: "Unknown error", fieldPath.subField(responseKey), e))
-                }
+            } catch (e: Throwable) {
+                handleException(e)
+                return null
             }
         }
 
-        return output
+        return jsonResult
     }
 
     private fun extractMessage(e: Throwable): String? {
@@ -436,12 +423,8 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return coercedValues
     }
 
-    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
-        return executeSelectionSetSerially(op.selectionSet, queryType, initialValue, variableValues)
-    }
-
     fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, variableValues: JsonObject, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
-        var visitedFragments = visitedFragments ?: HashSet()
+        val visitedFragments = visitedFragments ?: HashSet()
 
         val groupedFields = LinkedHashMap<String, MutableList<SelectionField>>()
 
@@ -613,7 +596,15 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         this.query = GraphQLParser.parseQueryDoc(rawQuery)
     }
 
-    companion object : KLogging()
+    companion object : KLogging() {
+        fun putInJson(key: String, value: Any?, json: JsonObject) {
+            if (value == null) {
+                json.putNull(key)
+            } else {
+                json.put(key, transformForJson(value))
+            }
+        }
+    }
 }
 
 

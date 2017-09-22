@@ -99,7 +99,7 @@ class FieldGetterCoroutine<in CTX>(
             }
 
             try {
-                callable.call(*args)
+                return@suspendCoroutineOrReturn callable.call(*args)
             } catch (e: InvocationTargetException) {
                 throw e.targetException
             }
