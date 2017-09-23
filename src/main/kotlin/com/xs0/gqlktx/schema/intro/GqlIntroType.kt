@@ -27,7 +27,15 @@ class GqlIntroType(private val type: GType) {
         get() = (type as? GObjectType)?.interfacesForIntrospection
 
     val possibleTypes: List<GqlIntroType>?
-        get() = (type as? GUnionType)?.membersForIntrospection
+        get() {
+            if (type is GUnionType) {
+                return type.membersForIntrospection
+            }
+            if (type is GInterfaceType) {
+                return type.implsForIntrospection
+            }
+            return null
+        }
 
     fun getEnumValues(@GQLArg(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroEnumValue>? {
         return (type as? GEnumType)?.getValuesForIntrospection(includeDeprecated)

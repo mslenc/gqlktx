@@ -48,13 +48,12 @@ class GUnionType(name: String) : GBaseType(name) {
         sb.append("\n")
     }
 
-    val membersForIntrospection: List<GqlIntroType>
-        get() {
-            val res = ArrayList<GqlIntroType>(members.size)
-            for (posib in members)
-                res.add(posib.introspector)
-            return res
-        }
+    val membersForIntrospection: List<GqlIntroType> by lazy {
+        val res = ArrayList<GqlIntroType>(members.size)
+        for (posib in members)
+            res.add(posib.introspector)
+        res
+    }
 
     fun setMembers(gqlImpls: HashSet<GObjectType>) {
         this.members = gqlImpls

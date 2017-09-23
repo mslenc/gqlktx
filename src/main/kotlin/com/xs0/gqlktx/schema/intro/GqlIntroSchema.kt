@@ -2,6 +2,7 @@ package com.xs0.gqlktx.schema.intro
 
 import com.xs0.gqlktx.ann.GraphQLObject
 import com.xs0.gqlktx.schema.Schema
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GBaseType
 
 import java.util.ArrayList
@@ -43,15 +44,21 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
         return res
     }
 
-    val types: List<GqlIntroType>
-        get() {
-            val res = ArrayList<GqlIntroType>()
+    fun getTypes(kinds: Array<TypeKind>?): List<GqlIntroType> {
+        val res = ArrayList<GqlIntroType>()
+        val filter: (TypeKind)->Boolean
+        if (kinds != null && kinds.isNotEmpty()) {
+            filter = kinds.toSet()::contains
+        } else {
+            filter = { _ -> true }
+        }
 
-            for (type in schema.allBaseTypes)
+        for (type in schema.allBaseTypes)
+            if (filter(type.kind))
                 res.add(type.introspector)
 
-            return res
-        }
+        return res
+    }
 
     val queryType: GqlIntroType
         get() {
