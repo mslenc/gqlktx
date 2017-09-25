@@ -308,7 +308,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val result = GJavaInterfaceType<CTX>(baseClass.nullableType(), gtype, impls)
         add(result)
 
-        continueScanningFields(fields)
+        continueScanningFields(baseClass, fields)
 
         for (impl in impls)
             scanTypes(impl.nullableType(), false)
@@ -331,9 +331,13 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         return result
     }
 
-    private fun continueScanningFields(fields: Map<String, FieldGetter<CTX>>) {
+    private fun continueScanningFields(baseClass: KClass<*>, fields: Map<String, FieldGetter<CTX>>) {
         for (field in fields.values) {
-            scanTypes(field.publicType.sourceType, false)
+            try {
+                scanTypes(field.publicType.sourceType, false)
+            } catch (e: Exception) {
+                throw IllegalStateException("Failed to scan type of ${field.name} in $baseClass", e)
+            }
 
             for (pp in field.publicParams.values) {
                 scanTypes(pp.type.sourceType, true)
@@ -467,7 +471,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val result = GJavaObjectType(baseClass.nullableType(), gtype, javaFields)
         add(result)
 
-        continueScanningFields(javaFields)
+        continueScanningFields(baseClass, javaFields)
 
         latentChecks.add({ fillInFields(javaFields, gqlFields) })
 
