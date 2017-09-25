@@ -482,9 +482,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             for ((_, p) in omi.publicParams) {
                 val argType = schema.getJavaType(p.type.sourceType) ?: throw IllegalStateException("Couldn't find it")
 
-                val defaultValue = p.parsedDefault
-
-                val arg = GArgument(p.name, argType.gqlType, defaultValue)
+                val arg = GArgument(p.name, argType.gqlType, p.defaultValue)
                 arguments.put(arg.name, arg)
             }
 

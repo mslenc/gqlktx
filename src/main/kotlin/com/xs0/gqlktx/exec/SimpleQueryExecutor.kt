@@ -374,15 +374,15 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             }
 
             if (!hasExplicitValue || valueOrVar is Variable) {
-                if (paramInfo.parsedDefault != null) {
-                    val `val`: Any
+                if (paramInfo.defaultValueJson != null) {
+                    val value: Any
                     try {
-                        `val` = argumentType.getFromJson(paramInfo.parsedDefault, inputVarParser)
+                        value = argumentType.getFromJson(paramInfo.defaultValueJson, inputVarParser)
                     } catch (e: Exception) {
                         throw FieldException("Couldn't use default value for argument " + argumentName + ": " + e.message, fieldPath, e)
                     }
 
-                    coercedValues.put(argumentName, `val`)
+                    coercedValues.put(argumentName, value)
                     continue
                 } else if (argumentType is GJavaNotNullType<*>) {
                     throw FieldException("Missing value for not null argument " + argumentName, fieldPath)

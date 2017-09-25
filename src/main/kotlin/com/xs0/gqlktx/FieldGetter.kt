@@ -10,14 +10,19 @@ import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.experimental.Continuation
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.coroutines.experimental.intrinsics.suspendCoroutineOrReturn
-import kotlin.coroutines.experimental.intrinsics.COROUTINE_SUSPENDED
 import kotlin.reflect.KCallable
 
 class PublicParamInfo(
     val name: String,
     val type: SemiType,
-    val parsedDefault: Value?
-)
+    val defaultValue: Value?
+) {
+    val defaultValueJson = defaultValue?.toJson()
+    init {
+        if (defaultValue != null && defaultValueJson == null)
+            throw IllegalStateException("Can't use null as a default value")
+    }
+}
 
 interface FieldGetter<in CTX> {
     val publicType: SemiType
