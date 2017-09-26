@@ -46,22 +46,18 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         private val context: CTX,
         queryInput: QueryInput) {
 
-    private val rawQuery: String
-    private val opName: String?
+    private val rawQuery: String = queryInput.query
+    private val opName: String? = queryInput.opName
+    private val rawVariables: JsonObject = queryInput.variables ?: JsonObject()
+    private val mutationsAllowed = queryInput.allowMutations
 
     private val fragmentsByName = HashMap<String, FragmentDefinition>()
     private val opsByName = HashMap<String?, OperationDefinition>()
 
     private val errors = JsonArray()
-    private val rawVariables: JsonObject
+
     private lateinit var inputVarParser: InputVarParser<CTX>
     private var query: Document? = null
-
-    init {
-        this.rawQuery = queryInput.query
-        this.opName = queryInput.opName
-        this.rawVariables = queryInput.variables ?: JsonObject()
-    }
 
     suspend fun executeRequest(): JsonObject {
         var data: JsonObject?
@@ -108,6 +104,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
 
         if (op.type === MUTATION) {
+            if (!mutationsAllowed)
+                throw QueryException("Mutations not allowed")
+
             val mutationRoot = schema.mutationRoot ?: throw QueryException("No mutations supported (yet)")
             val initialObject = mutationRoot.invoke(rootObject)!!
             var initialType = schema.getJavaType(mutationRoot.type)
