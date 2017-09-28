@@ -78,6 +78,8 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             addError(e.message ?: "Unknown error", e.path, null)
         } else if (e is Error) {
             addError("An error occurred: " + e, null, null)
+        } else if (e is CancellationException) {
+            // ignore
         } else {
             addError("An unexpected exception occurred: " + e, null, null)
         }
