@@ -186,3 +186,8 @@ fun Double.ensureFinite(): Double {
         throw IllegalArgumentException("Can't use NaNs or infinities")
     }
 }
+
+inline fun Int.ifNotZero(block: (Int) -> Unit) {
+    if (this != 0)
+        block(this)
+}
