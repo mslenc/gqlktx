@@ -1,11 +1,11 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GraphQLObject
+import com.xs0.gqlktx.GqlObject
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.types.gql.GArgument
 import com.xs0.gqlktx.types.gql.GField
 
-@GraphQLObject("__InputValue")
+@GqlObject("__InputValue")
 class GqlIntroInputValue {
     val name: String
     val description: String?

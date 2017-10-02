@@ -1,8 +1,8 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GraphQLEnum
+import com.xs0.gqlktx.GqlEnum
 
-@GraphQLEnum("__DirectiveLocation")
+@GqlEnum("__DirectiveLocation")
 enum class GqlIntroDirectiveLocation {
     QUERY,
     MUTATION,

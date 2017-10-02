@@ -39,7 +39,7 @@ suspend fun <T> awaitAll(futures: List<Deferred<T>>): List<T?> {
                 break
 
             select<Unit> {
-                for ((index, future) in list) {
+                for ((_, future) in list) {
                     future.onAwait {
                         // just go on with the loop...
                     }

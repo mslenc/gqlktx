@@ -27,5 +27,5 @@ class FragmentDefinition(
         val directives: List<Directive>,
         val selectionSet: SelectionSet) : Definition() {
 
-    val name = nameToken?.value
+    val name = nameToken.value
 }

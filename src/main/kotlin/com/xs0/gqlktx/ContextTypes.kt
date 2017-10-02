@@ -1,6 +1,5 @@
 package com.xs0.gqlktx
 
-import com.xs0.gqlktx.ann.GqlIgnore
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 

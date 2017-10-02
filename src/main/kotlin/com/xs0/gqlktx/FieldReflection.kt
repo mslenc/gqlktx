@@ -1,8 +1,5 @@
 package com.xs0.gqlktx
 
-import com.xs0.gqlktx.ann.GQLArg
-import com.xs0.gqlktx.ann.GqlField
-import com.xs0.gqlktx.ann.GqlIgnore
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.parser.GraphQLParser
 import io.vertx.core.AsyncResult
@@ -189,8 +186,8 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
         params += parsedParam
 
-        var parsedDefault: Value? =
-            param.findAnnotation<GQLArg>()?.let {
+        val parsedDefault: Value? =
+            param.findAnnotation<GqlParam>()?.let {
                 it.defaultsTo.trimToNull()?.let {
                     GraphQLParser.parseValue(it)
                 }

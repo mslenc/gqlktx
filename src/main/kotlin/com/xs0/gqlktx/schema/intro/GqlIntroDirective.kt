@@ -1,8 +1,8 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GraphQLObject
+import com.xs0.gqlktx.GqlObject
 
-@GraphQLObject("__Directive")
+@GqlObject("__Directive")
 class GqlIntroDirective(
     val name: String,
     val description: String,

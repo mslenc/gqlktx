@@ -1,6 +1,6 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GraphQLObject
+import com.xs0.gqlktx.GqlObject
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GBaseType
@@ -14,7 +14,7 @@ import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.INLINE_FRAGMENT
 import com.xs0.gqlktx.types.kotlin.GJavaNotNullType
 import java.util.Collections.singletonList
 
-@GraphQLObject("__Schema")
+@GqlObject("__Schema")
 class GqlIntroSchema(private val schema: Schema<*, *>) {
     val directives: List<GqlIntroDirective> = buildDirectives()
 

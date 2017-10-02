@@ -1,11 +1,11 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GQLArg
-import com.xs0.gqlktx.ann.GraphQLObject
+import com.xs0.gqlktx.GqlParam
+import com.xs0.gqlktx.GqlObject
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.*
 
-@GraphQLObject("__Type")
+@GqlObject("__Type")
 class GqlIntroType(private val type: GType) {
 
     val kind: TypeKind
@@ -18,7 +18,7 @@ class GqlIntroType(private val type: GType) {
     val description: String?
         get() = null
 
-    fun getFields(@GQLArg(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroField>? {
+    fun getFields(@GqlParam(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroField>? {
         return (type as? GFieldedType)?.getFieldsForIntrospection(includeDeprecated)
 
     }
@@ -37,7 +37,7 @@ class GqlIntroType(private val type: GType) {
             return null
         }
 
-    fun getEnumValues(@GQLArg(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroEnumValue>? {
+    fun getEnumValues(@GqlParam(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroEnumValue>? {
         return (type as? GEnumType)?.getValuesForIntrospection(includeDeprecated)
     }
 

@@ -1,7 +1,6 @@
 package com.xs0.gqlktx.schema.builder
 
 import com.xs0.gqlktx.*
-import com.xs0.gqlktx.ann.*
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.intro.GqlIntroSchema
 import com.xs0.gqlktx.types.gql.*
@@ -159,9 +158,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     fun build(): Schema<SCHEMA, CTX> {
         val schemaClass = schema.schemaClass
 
-        val getQueryRoot = findRootMethod(schemaClass, GraphQLQueryRoot::class, "query", "getQuery") ?: throw IllegalArgumentException("Couldn't find getQuery in " + schemaClass)
+        val getQueryRoot = findRootMethod(schemaClass, GqlQueryRoot::class, "query", "getQuery") ?: throw IllegalArgumentException("Couldn't find getQuery in " + schemaClass)
 
-        val getMutationRoot = findRootMethod(schemaClass, GraphQLMutationRoot::class, "mutation", "getMutation")
+        val getMutationRoot = findRootMethod(schemaClass, GqlMutationRoot::class, "mutation", "getMutation")
         // (mutation is optional)
 
         scanTypes(getQueryRoot.type, false)
@@ -254,6 +253,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         when (kind) {
             SCALAR, ENUM -> {
+                // ok
             }
 
             INPUT_OBJECT -> if (!isInput) {
@@ -263,6 +263,8 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             INTERFACE, OBJECT, UNION -> if (isInput) {
                 throw SchemaException("An object, interface or union type can't be used for input")
             }
+
+            else -> throw IllegalStateException("Unexpected kind $kind for a base type")
         }
 
         when (kind) {
@@ -282,13 +284,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     }
 
     private fun buildInterface(baseClass: KClass<*>): GJavaInterfaceType<CTX> {
-        val name: String
-        val ann = baseClass.findAnnotation<GraphQLInterface>()
-        if (ann != null && !ann.value.isEmpty()) {
-            name = ann.value
-        } else {
-            name = resolveName(baseClass)
-        }
+        val ann = baseClass.findAnnotation<GqlInterface>()
+
+        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
 
@@ -346,13 +344,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     }
 
     private fun buildUnion(baseClass: KClass<*>): GJavaUnionType<CTX> {
-        val name: String
-        val ann = baseClass.findAnnotation<GraphQLUnion>()
-        if (ann != null && !ann.value.isEmpty()) {
-            name = ann.value
-        } else {
-            name = resolveName(baseClass)
-        }
+        val ann = baseClass.findAnnotation<GqlUnion>()
+
+        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
 
@@ -398,9 +392,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         val classList = HashSet(scanResult.classNamesToClassRefs(toCheck))
 
-        val posibs = scanResult.getNamesOfClassesWithAnnotation(GraphQLObject::class.java)
+        val posibs = scanResult.getNamesOfClassesWithAnnotation(GqlObject::class.java)
         for (posib in scanResult.classNamesToClassRefs(posibs)) {
-            val ann = posib.getAnnotation(GraphQLObject::class.java)
+            val ann = posib.getAnnotation(GqlObject::class.java)
             if (ann != null && ann.implements.isNotEmpty()) {
                 for (i in ann.implements)
                     if (i == baseClass)
@@ -414,13 +408,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
 
     private fun buildInputObject(baseClass: KClass<*>): GJavaInputObjectType<CTX> {
-        val name: String
-        val ann = baseClass.findAnnotation<GraphQLInput>()
-        if (ann != null && !ann.value.isEmpty()) {
-            name = ann.value
-        } else {
-            name = resolveName(baseClass)
-        }
+        val ann = baseClass.findAnnotation<GqlInput>()
+
+        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
 
@@ -452,13 +442,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     }
 
     private fun buildObject(baseClass: KClass<*>): GJavaObjectType<CTX> {
-        val name: String
-        val ann = baseClass.findAnnotation<GraphQLObject>()
-        if (ann != null && ann.value.isNotEmpty()) {
-            name = ann.value
-        } else {
-            name = resolveName(baseClass)
-        }
+        val ann = baseClass.findAnnotation<GqlObject>()
+
+        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
 
@@ -495,16 +481,11 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     }
 
     private fun buildEnum(baseClass: KClass<*>): GJavaType<CTX> {
-        val name: String
-        val ann = baseClass.findAnnotation<GraphQLEnum>()
-        if (ann != null && !ann.value.isEmpty()) {
-            name = ann.value
-        } else {
-            name = resolveName(baseClass)
-        }
+        val ann = baseClass.findAnnotation<GqlEnum>()
+
+        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
         if (!validGraphQLName(name))
             throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
-
 
         if (Enum::class.isSuperclassOf(baseClass)) {
             if (baseClass == Enum::class) {

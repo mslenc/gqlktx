@@ -1,18 +1,18 @@
 package com.xs0.gqlktx.schema.builder
 
-import com.xs0.gqlktx.ann.*
+import com.xs0.gqlktx.*
 import kotlin.reflect.KClass
 
-@GraphQLEnum("__TypeKind")
+@GqlEnum("__TypeKind")
 enum class TypeKind(val explicitAnnotation: KClass<out Annotation>?) {
-    SCALAR(GraphQLScalar::class),
-    ENUM(GraphQLEnum::class),
+    SCALAR(GqlScalar::class),
+    ENUM(GqlEnum::class),
 
-    INPUT_OBJECT(GraphQLInput::class),
+    INPUT_OBJECT(GqlInput::class),
 
-    INTERFACE(GraphQLInterface::class),
-    OBJECT(GraphQLObject::class),
-    UNION(GraphQLUnion::class),
+    INTERFACE(GqlInterface::class),
+    OBJECT(GqlObject::class),
+    UNION(GqlUnion::class),
 
     NON_NULL(null),
     LIST(null)

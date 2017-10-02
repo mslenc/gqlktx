@@ -1,8 +1,8 @@
 package com.xs0.gqlktx.schema.intro
 
-import com.xs0.gqlktx.ann.GraphQLObject
+import com.xs0.gqlktx.GqlObject
 
-@GraphQLObject("__EnumValue")
+@GqlObject("__EnumValue")
 class GqlIntroEnumValue(val name: String) {
     // TODO
     val description: String?

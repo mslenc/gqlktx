@@ -1,7 +1,5 @@
 package com.xs0.gqlktx
 
-import com.xs0.gqlktx.ann.GQLArg
-import com.xs0.gqlktx.ann.GraphQLInput
 import com.xs0.gqlktx.parser.GraphQLParser
 import kotlin.reflect.KCallable
 import kotlin.reflect.KClass
@@ -51,7 +49,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
     val propSetters = HashMap<String, FieldSetter>()
 
     for (func in klass.memberFunctions) {
-        val ann = func.findAnnotation<GraphQLInput>()
+        val ann = func.findAnnotation<GqlInput>()
         val forced = ann != null
 
         if (!func.isPublic || func.ignored || func.valueParameters.size != 1 || func.returnType.classifier != Unit::class) {
@@ -63,7 +61,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
             continue
         }
 
-        val name = ann?.value.trimToNull() ?: setterName(func.name)
+        val name = ann?.name.trimToNull() ?: setterName(func.name)
         if (name == null || !validGraphQLName(name, false)) {
             throwIf(forced) { "$name is not a valid GraphQL name (in $klass)" }
             continue
@@ -91,7 +89,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
     }
 
     for (prop in klass.memberProperties) {
-        val ann = prop.findAnnotation<GraphQLInput>()
+        val ann = prop.findAnnotation<GqlInput>()
         val forced = ann != null
 
         if (!prop.isPublic || prop.ignored || prop.isConst) {
@@ -105,7 +103,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
         @Suppress("UNCHECKED_CAST")
         prop as KMutableProperty1<Any, Any?>
 
-        val name = ann?.value.trimToNull() ?: prop.name
+        val name = ann?.name.trimToNull() ?: prop.name
         if (!validGraphQLName(name, false)) {
             throwIf(forced) { "$name is not a valid GraphQL name (in $klass)" }
             continue
@@ -137,7 +135,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
         val thisConsProps = LinkedHashMap<String, SemiType>()
 
         for (param in cons.parameters) {
-            val ann = param.findAnnotation<GQLArg>()
+            val ann = param.findAnnotation<GqlParam>()
             val forced = ann != null
 
             if (param.ignored)
@@ -151,7 +149,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
                 continue@nextCons
             }
 
-            val name = ann?.value.trimToNull() ?: param.name
+            val name = ann?.name.trimToNull() ?: param.name
             if (name == null) {
                 throwIf(forced) { "Couldn't determine name of $param"}
                 continue@nextCons
