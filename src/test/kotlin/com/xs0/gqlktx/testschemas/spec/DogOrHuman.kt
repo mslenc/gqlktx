@@ -1,6 +1,6 @@
 package com.xs0.gqlktx.testschemas.spec
 
-import com.xs0.gqlktx.ann.GraphQLUnion
+import com.xs0.gqlktx.GqlUnion
 
-@GraphQLUnion
+@GqlUnion
 interface DogOrHuman

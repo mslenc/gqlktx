@@ -1,6 +1,6 @@
 package schema1
 
-import com.xs0.gqlktx.ann.GqlField
+import com.xs0.gqlktx.GqlField
 import com.xs0.gqlktx.trimToNull
 import com.xs0.gqlktx.utils.NodeId
 import io.vertx.core.AsyncResult

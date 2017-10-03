@@ -1,8 +1,8 @@
 package com.xs0.gqlktx.testschemas.spec
 
-import com.xs0.gqlktx.ann.GraphQLInterface
+import com.xs0.gqlktx.GqlInterface
 
-@GraphQLInterface
+@GqlInterface
 interface Pet {
     val name: String
 }
