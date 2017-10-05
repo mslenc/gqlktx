@@ -16,6 +16,7 @@ import java.util.*
 import com.xs0.gqlktx.schema.builder.TypeKind.*
 import com.xs0.gqlktx.utils.NodeId
 import mu.KLogging
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.collections.HashMap
@@ -135,6 +136,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         maybeAdd(GJavaUUID(UUID::class.nullableType(), ID))
         maybeAdd(GJavaUUID(UUID::class.nonNullType(), ID.notNull()))
+
+        maybeAdd(GJavaBigDecimal(BigDecimal::class.nullableType(), FLOAT))
+        maybeAdd(GJavaBigDecimal(BigDecimal::class.nonNullType(), FLOAT.notNull()))
 
         maybeAdd(GJavaNodeId(NodeId::class.nullableType(), ID))
         maybeAdd(GJavaNodeId(NodeId::class.nonNullType(), ID.notNull()))

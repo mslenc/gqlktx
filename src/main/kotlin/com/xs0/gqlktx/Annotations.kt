@@ -68,11 +68,10 @@ annotation class GqlUnion(
 
 
 @Retention(RUNTIME)
-@Target(CLASS)
+@Target(CLASS, PROPERTY, FUNCTION)
 annotation class GqlInput(
     val name: String = "",
-    val defaultsTo: String = "",
-    val implementedBy: Array<KClass<*>> = arrayOf()
+    val defaultsTo: String = ""
 )
 
 @Retention(RUNTIME)
