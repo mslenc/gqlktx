@@ -4,7 +4,6 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.util.*
 
-class Maybe<out T> (val value: T)
 
 private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
 private val fromBase64: IntArray = run {
@@ -12,7 +11,7 @@ private val fromBase64: IntArray = run {
     for (i in 0..63)
         fromBase64[toBase64[i].toInt()] = i
     fromBase64['='.toInt()] = -2
-    fromBase64
+    return@run fromBase64
 }
 
 fun base64EncodeULong(value: Long): String {

@@ -191,3 +191,7 @@ inline fun Int.ifNotZero(block: (Int) -> Unit) {
     if (this != 0)
         block(this)
 }
+
+inline fun Int.ifZero(block: () -> Int): Int {
+    return if (this == 0) block() else this
+}
