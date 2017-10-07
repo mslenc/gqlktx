@@ -1,5 +1,7 @@
 package com.xs0.gqlktx.utils
 
+import com.xs0.gqlktx.utils.PackedIdListWriter.Companion.TB_BIGDECIMAL
+import com.xs0.gqlktx.utils.PackedIdListWriter.Companion.TB_BIGINTEGER
 import java.io.EOFException
 import java.io.IOException
 import java.io.InputStream
@@ -25,6 +27,8 @@ import com.xs0.gqlktx.utils.PackedIdListWriter.Companion.TB_UUID
 import com.xs0.gqlktx.utils.PackedIdListWriter.Companion.TB_STRING_VARLEN
 import com.xs0.gqlktx.utils.PackedIdListWriter.Companion.TB_STRING_LEN0
 import java.lang.Long.reverseBytes
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.nio.charset.StandardCharsets.UTF_8
 
 class PackedIdListReader(private val input: InputStream) {
@@ -86,6 +90,24 @@ class PackedIdListReader(private val input: InputStream) {
                 return UUID(msb, lsb)
             }
 
+            TB_BIGINTEGER -> {
+                val len = readRawVarint32()
+                if (len < 0 || len > 65536)
+                    throw IOException("Invalid byte array length")
+                val bytes = readByteArray(len)
+                return BigInteger(bytes)
+            }
+
+            TB_BIGDECIMAL -> {
+                val scale = readRawVarint32()
+                val len = readRawVarint32()
+                if (len < 0 || len > 65536)
+                    throw IOException("Invalid byte array length")
+                val bytes = readByteArray(len)
+                val bigInt = BigInteger(bytes)
+                return BigDecimal(bigInt, scale)
+            }
+
             TB_STRING_VARLEN // first, varint of (length - 64), then length bytes (UTF8)
             -> {
                 val len = readRawVarint32()
@@ -116,17 +138,21 @@ class PackedIdListReader(private val input: InputStream) {
     }
 
     internal fun readUTF8(len: Int): String {
+        return String(readByteArray(len), UTF_8)
+    }
+
+    internal fun readByteArray(len: Int): ByteArray {
         val buff = ByteArray(len)
 
         var pos = 0
         while (pos < len) {
             val read = input.read(buff, pos, len - pos)
             if (read <= 0)
-                throw EOFException("Incomplete string")
+                throw EOFException("Incomplete byte array")
             pos += read
         }
 
-        return String(buff, UTF_8)
+        return buff
     }
 
     private fun readBytesAsInt(len: Int): Int {

@@ -8,6 +8,8 @@ import java.util.Random
 import java.util.UUID
 
 import org.junit.Assert.*
+import java.math.BigDecimal
+import java.math.BigInteger
 import kotlin.reflect.KClass
 
 class NodeIdTest {
@@ -142,6 +144,18 @@ class NodeIdTest {
             expected.add(s)
             builder.add(s)
             types.add(String::class)
+        }
+
+        for (d in arrayOf(BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.TEN, BigDecimal("-3.14159000"), BigDecimal(BigInteger("123"), -3))) {
+            expected.add(d)
+            builder.add(d)
+            types.add(BigDecimal::class)
+        }
+
+        for (i in arrayOf(BigInteger.ZERO, BigInteger.ONE, BigInteger.TEN, BigInteger.probablePrime(123, Random()))) {
+            expected.add(i)
+            builder.add(i)
+            types.add(BigInteger::class)
         }
 
         val id = builder.build()

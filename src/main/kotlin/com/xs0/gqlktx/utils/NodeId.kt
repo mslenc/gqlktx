@@ -1,7 +1,8 @@
 package com.xs0.gqlktx.utils
 
-import java.io.IOException
 import java.io.OutputStream
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -11,7 +12,7 @@ import kotlin.reflect.KClass
  *
  *
  * The string encoding is produced by converting the whole thing into a binary encoding
- * (see [)), then base64url-encoding that.][PackedIdListWriter]
+ * (see [PackedIdListWriter]), then base64url-encoding that.
  */
 class NodeId private constructor(val typeId: String, private val parts: Array<Any>, private val encoded: String) {
 
@@ -118,9 +119,21 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
             return this
         }
 
-        fun add(s: String): Builder {
-            parts.add(s)
-            partWriter.writeString(s)
+        fun add(value: String): Builder {
+            parts.add(value)
+            partWriter.writeString(value)
+            return this
+        }
+
+        fun add(value: BigInteger): Builder {
+            parts.add(value)
+            partWriter.writeBigInteger(value)
+            return this
+        }
+
+        fun add(value: BigDecimal): Builder {
+            parts.add(value)
+            partWriter.writeBigDecimal(value)
             return this
         }
     }

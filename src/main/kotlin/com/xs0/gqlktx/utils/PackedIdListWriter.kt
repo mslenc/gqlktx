@@ -5,16 +5,10 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import java.lang.Long.reverseBytes
+import java.math.BigDecimal
+import java.math.BigInteger
 
 class PackedIdListWriter(private val out: OutputStream) {
-    enum class Type {
-        NULL,
-        INTEGER,
-        LONG,
-        UUID,
-        STRING
-    }
-
     private fun writeVarint(value: Int) {
         var value = value
         while (true) {
@@ -140,6 +134,21 @@ class PackedIdListWriter(private val out: OutputStream) {
         writeFixedLong(reverseBytes(value.leastSignificantBits))
     }
 
+    fun writeBigInteger(value: BigInteger) {
+        val bytes = value.toByteArray()
+        out.write(TB_BIGINTEGER)
+        writeVarint(bytes.size)
+        out.write(bytes)
+    }
+
+    fun writeBigDecimal(value: BigDecimal) {
+        val bytes = value.unscaledValue().toByteArray()
+        out.write(TB_BIGDECIMAL)
+        writeVarint(value.scale())
+        writeVarint(bytes.size)
+        out.write(bytes)
+    }
+
     companion object {
 
         const val TB_INT_ZERO = 0 // 0, no extra bytes
@@ -163,6 +172,8 @@ class PackedIdListWriter(private val out: OutputStream) {
         const val TB_CHAR = 14 // 2 bytes, LSB first
 
         const val TB_UUID = 64 // 16 bytes, big endian
+        const val TB_BIGINTEGER = 65 // varint length, then length bytes
+        const val TB_BIGDECIMAL = 66 // varint scale, varint length, then length bytes
 
         const val TB_STRING_VARLEN = 191 // first, varint of (length - 64), then length bytes (UTF8)
         const val TB_STRING_LEN0 = 192 // this and next 63; (implicit length + that many bytes)
