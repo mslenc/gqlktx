@@ -205,10 +205,20 @@ class PackedIdListReader(private val input: InputStream) {
     }
 
     private fun readRawVarint32(): Int {
-        val l = readRawVarint64()
-        if (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE)
-            return l.toInt()
+        var result: Int = 0
+        var shift = 0
+        while (shift < 32) {
+            val b = input.read()
+            if (b < 0)
+                throw EOFException("Unexpected end of data")
 
-        throw IOException("Invalid varint - value exceeds 32 bits")
+            result = result or ((b and 0x7F) shl shift)
+            if (b < 0x80) {
+                return result
+            }
+            shift += 7
+        }
+
+        throw IOException("Invalid varint")
     }
 }
