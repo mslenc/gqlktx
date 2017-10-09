@@ -34,11 +34,7 @@ class GInterfaceType(name: String, fields: Map<String, GField>) : GFieldedType(n
             return false
         }
 
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        throw QueryException("Interface type $name can't be used as a variable")
-    }
-
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
+    override fun coerceValue(raw: Any): Any {
         throw QueryException("Interface type $name can't be used as a variable")
     }
 

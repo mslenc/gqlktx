@@ -3,7 +3,6 @@ package com.xs0.gqlktx.types.gql
 import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.schema.builder.TypeKind
 import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 class GListType(innerType: GType) : GWrappingType(innerType) {
 
@@ -13,47 +12,23 @@ class GListType(innerType: GType) : GWrappingType(innerType) {
     override val gqlTypeString: String
         get() = "[" + wrappedType.gqlTypeString + "]"
 
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        val rawList: JsonArray?
-        try {
-            rawList = raw.getJsonArray(key)
-        } catch (e: ClassCastException) {
+    override fun coerceValue(raw: Any): JsonArray {
+        if (raw !is JsonArray)
             throw QueryException("List type $gqlTypeString needs a list value, but had something else")
-        }
 
-        if (rawList == null) {
-            out.putNull(key)
-        } else {
-            val coerced = JsonArray()
-            var i = 0
-            val n = rawList.size()
-            while (i < n) {
-                wrappedType.coerceValue(rawList, i, coerced)
-                i++
+        val coerced = JsonArray()
+
+        for (i in 0 until raw.size()) {
+            val rawEl: Any? = raw.getValue(i)
+            if (rawEl == null) {
+                if (wrappedType.kind == TypeKind.NON_NULL)
+                    throw QueryException("Null value not allowed in this list")
+                coerced.addNull()
+            } else {
+                coerced.add(wrappedType.coerceValue(rawEl))
             }
-            out.put(key, coerced)
-        }
-    }
-
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
-        val rawList: JsonArray?
-        try {
-            rawList = raw.getJsonArray(index)
-        } catch (e: ClassCastException) {
-            throw QueryException("List type $gqlTypeString needs a list value, but had something else")
         }
 
-        if (rawList == null) {
-            out.addNull()
-        } else {
-            val coerced = JsonArray()
-            var i = 0
-            val n = rawList.size()
-            while (i < n) {
-                wrappedType.coerceValue(rawList, i, coerced)
-                i++
-            }
-            out.add(coerced)
-        }
+        return coerced
     }
 }

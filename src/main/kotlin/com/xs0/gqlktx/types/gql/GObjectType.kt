@@ -19,12 +19,8 @@ class GObjectType(name: String, fields: Map<String, GField>) : GFieldedType(name
             return false
         }
 
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        throw QueryException("Union type $name can't be used as a variable")
-    }
-
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
-        throw QueryException("Union type $name can't be used as a variable")
+    override fun coerceValue(raw: Any): Any {
+        throw QueryException("Object type $name can't be used as a variable")
     }
 
     override fun toString(sb: StringBuilder) {

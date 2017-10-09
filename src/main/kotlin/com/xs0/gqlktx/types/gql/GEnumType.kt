@@ -13,26 +13,16 @@ class GEnumType(name: String, val values: Set<String>) : GValueType(name) {
     override val kind: TypeKind
         get() = TypeKind.ENUM
 
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        try {
-            out.put(key, check(raw.getString(key)))
-        } catch (e: ClassCastException) {
+    override fun coerceValue(raw: Any): Any {
+        if (raw is CharSequence) {
+            return check(raw.toString())
+        } else {
             throw QueryException("Expected an enum value (String)")
         }
-
     }
 
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
-        try {
-            out.add(check(raw.getString(index))!!)
-        } catch (e: ClassCastException) {
-            throw QueryException("Expected an enum value (String)")
-        }
-
-    }
-
-    private fun check(string: String?): String? {
-        if (string == null || values.contains(string))
+    private fun check(string: String): String {
+        if (values.contains(string))
             return string
 
         throw QueryException("Invalid enum value ($string). The possibilities are: $values")

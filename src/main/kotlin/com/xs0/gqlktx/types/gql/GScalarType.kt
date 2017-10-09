@@ -9,27 +9,11 @@ class GScalarType(name: String, private val varValueValidator: (Any)->Any) : GVa
     override val kind: TypeKind
         get() = TypeKind.SCALAR
 
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        if (raw.containsKey(key))
-            out.put(key, coerce(raw.getValue(key)))
-    }
-
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
-        out.add(coerce(raw.getValue(index))!!)
-    }
-
-    private fun coerce(value: Any?): Any? {
-        if (value != null) {
-            val coerced: Any
-            try {
-                coerced = varValueValidator(value)
-            } catch (e: Exception) {
-                throw QueryException("Invalid value $value for type $gqlTypeString")
-            }
-
-            return coerced
-        } else {
-            return null
+    override fun coerceValue(raw: Any): Any {
+        try {
+            return varValueValidator(raw)
+        } catch (e: Exception) {
+            throw QueryException("Invalid value $raw for type $gqlTypeString")
         }
     }
 

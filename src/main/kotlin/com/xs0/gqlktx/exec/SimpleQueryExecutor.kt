@@ -516,7 +516,14 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             if (rawVariables.containsKey(varName)) {
                 val type = getType(varTypeDef)
-                type.coerceValue(rawVariables, varName, coercedValues)
+                val rawVal: Any? = rawVariables.getValue(varName)
+                if (rawVal == null) {
+                    if (type.kind == TypeKind.NON_NULL)
+                        throw QueryException("Invalid null data for variable $$varName")
+                    coercedValues.putNull(varName)
+                } else {
+                    coercedValues.put(varName, type.coerceValue(rawVal))
+                }
             } else if (defaultValue != null) {
                 coercedValues.put(varName, defaultValue.toJson())
             } else {

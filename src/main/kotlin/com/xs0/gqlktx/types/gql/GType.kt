@@ -36,7 +36,5 @@ abstract class GType protected constructor() {
         return cached
     }
 
-    abstract fun coerceValue(raw: JsonObject, key: String, out: JsonObject)
-
-    abstract fun coerceValue(raw: JsonArray, index: Int, out: JsonArray)
+    abstract fun coerceValue(raw: Any): Any
 }

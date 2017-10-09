@@ -2,10 +2,7 @@ package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.schema.builder.TypeKind
-import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
-
-import java.util.HashSet
 
 class GInputObjType(name: String, fields: Map<String, GField>) : GFieldedType(name, fields) {
 
@@ -17,49 +14,31 @@ class GInputObjType(name: String, fields: Map<String, GField>) : GFieldedType(na
             return true
         }
 
-    override fun coerceValue(raw: JsonArray, index: Int, out: JsonArray) {
-        val rawObj: JsonObject?
-        try {
-            rawObj = raw.getJsonObject(index)
-        } catch (e: ClassCastException) {
+    override fun coerceValue(raw: Any): JsonObject {
+        if (raw !is JsonObject)
             throw QueryException("Expected a JSON object value for type " + gqlTypeString)
-        }
 
-        if (rawObj == null) {
-            out.addNull()
-        } else {
-            out.add(makeCoercedObj(rawObj))
-        }
-    }
-
-    override fun coerceValue(raw: JsonObject, key: String, out: JsonObject) {
-        val rawObj: JsonObject?
-        try {
-            rawObj = raw.getJsonObject(key)
-        } catch (e: ClassCastException) {
-            throw QueryException("Expected a JSON object value for type " + gqlTypeString)
-        }
-
-        if (rawObj == null) {
-            out.putNull(key)
-        } else {
-            out.put(key, makeCoercedObj(rawObj))
-        }
-    }
-
-    @Throws(QueryException::class)
-    private fun makeCoercedObj(rawObj: JsonObject): JsonObject {
-        if (!fields.keys.containsAll(rawObj.fieldNames())) {
-            val names = HashSet(rawObj.fieldNames())
-            names.removeAll(fields.keys)
-
-            throw QueryException("Unknown field(s) in value of type $gqlTypeString: $names")
+        if (!fields.keys.containsAll(raw.fieldNames())) {
+            val unknown = raw.fieldNames() - fields.keys
+            throw QueryException("Unknown field(s) in value of type $gqlTypeString: $unknown")
         }
 
         val coerced = JsonObject()
-        for ((key, value) in fields) {
-            value.type.coerceValue(rawObj, key, coerced)
+        for ((key, field) in fields) {
+            if (key !in raw.fieldNames())
+                continue
+
+            val rawValue: Any? = raw.getValue(key)
+            if (rawValue == null) {
+                if (field.type.kind == TypeKind.NON_NULL)
+                    throw QueryException("Null value not allowed for field $key")
+
+                coerced.putNull(key)
+            } else {
+                coerced.put(key, field.type.coerceValue(rawValue))
+            }
         }
+
         return coerced
     }
 
