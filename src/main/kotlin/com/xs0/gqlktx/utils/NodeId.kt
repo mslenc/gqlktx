@@ -42,10 +42,6 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
         return encoded
     }
 
-    fun numParts(): Int {
-        return parts.size
-    }
-
     class Builder internal constructor(private val typeId: String) {
         private val encoded: StringOutputStream = StringOutputStream()
         private val base64: OutputStream = Base64.getEncoder().withoutPadding().wrap(encoded)
@@ -139,11 +135,16 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
     }
 
     companion object {
+        val CREATE_NEW = NodeId("__new__", emptyArray(), "__new__")
+
         fun create(typeId: String): Builder {
             return Builder(typeId)
         }
 
         fun fromPublicID(encodedId: String): NodeId {
+            if (encodedId == CREATE_NEW.encoded)
+                return CREATE_NEW
+
             val reader = PackedIdListReader(Base64.getDecoder().wrap(StringInputStream(encodedId)))
 
             try {
