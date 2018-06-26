@@ -8,22 +8,38 @@ import kotlin.reflect.KClass
 @Retention(RUNTIME)
 annotation class GqlIgnore
 
+@Target(FUNCTION, PROPERTY, CLASS, FILE)
+@Retention(RUNTIME)
+annotation class GqlDeprecated(
+    val reason: String = ""
+)
+
 @Retention(RUNTIME)
 @Target(CLASS)
 annotation class GqlScalar(
-    val name: String = ""
+    val name: String = "",
+    val description: String = ""
 )
 
 @Retention(RUNTIME)
 @Target(CLASS, FILE)
 annotation class GqlEnum(
-    val name: String = ""
+    val name: String = "",
+    val description: String = ""
+)
+
+@Retention(RUNTIME)
+@Target(CLASS, FILE)
+annotation class GqlEnumValue(
+    val name: String = "",
+    val description: String = ""
 )
 
 @Target(PROPERTY, FUNCTION)
 @Retention(RUNTIME)
 annotation class GqlField(
-    val name: String = ""
+    val name: String = "",
+    val description: String = ""
 )
 
 @Retention(AnnotationRetention.RUNTIME)
@@ -49,6 +65,7 @@ annotation class GqlParam(
 @Target(CLASS)
 annotation class GqlObject(
     val name: String = "",
+    val description: String = "",
     val implements: Array<KClass<*>> = arrayOf()
 )
 
@@ -56,6 +73,7 @@ annotation class GqlObject(
 @Target(CLASS)
 annotation class GqlInterface(
     val name: String = "",
+    val description: String = "",
     val implementedBy: Array<KClass<*>> = arrayOf()
 )
 
@@ -63,6 +81,7 @@ annotation class GqlInterface(
 @Target(CLASS)
 annotation class GqlUnion(
     val name: String = "",
+    val description: String = "",
     val implementedBy: Array<KClass<*>> = arrayOf()
 )
 
@@ -71,6 +90,7 @@ annotation class GqlUnion(
 @Target(CLASS, PROPERTY, FUNCTION)
 annotation class GqlInput(
     val name: String = "",
+    val description: String = "",
     val defaultsTo: String = ""
 )
 
