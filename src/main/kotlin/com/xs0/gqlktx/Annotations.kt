@@ -29,7 +29,7 @@ annotation class GqlEnum(
 )
 
 @Retention(RUNTIME)
-@Target(CLASS, FILE)
+@Target(FIELD)
 annotation class GqlEnumValue(
     val name: String = "",
     val description: String = ""
