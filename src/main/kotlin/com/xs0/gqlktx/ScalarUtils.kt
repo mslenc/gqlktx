@@ -112,6 +112,14 @@ object ScalarUtils {
         throw ValidationException("Expected a valid date string in format \"YYYY-MM-DD\"")
     }
 
+    val TIME_PATTERN = Pattern.compile("^[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?$")
+    fun validateTime(str: Any): String {
+        if (str is CharSequence && TIME_PATTERN.matcher(str).matches())
+            return str.toString()
+
+        throw ValidationException("Expected a valid time string in format \"HH:MM:SS[.mmm]\"")
+    }
+
     val DATETIME_PATTERN = Pattern.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$")
     fun validateDateTime(str: Any): String {
         if (str is CharSequence && DATETIME_PATTERN.matcher(str).matches())

@@ -19,6 +19,7 @@ import mu.KLogging
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import kotlin.collections.HashMap
 import kotlin.collections.LinkedHashMap
 import kotlin.reflect.full.createType
@@ -97,6 +98,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val ID = getOrCreateScalarType("ID", ScalarUtils::validateID)
         val BYTES = getOrCreateScalarType("Bytes", ScalarUtils::validateBytes)
         val DATE = getOrCreateScalarType("Date", ScalarUtils::validateDate)
+        val TIME = getOrCreateScalarType("Time", ScalarUtils::validateTime)
         val DATETIME = getOrCreateScalarType("DateTime", ScalarUtils::validateDateTime)
 
         val javaByte = maybeAdd(GJavaByte(Byte::class.nonNullType(), INT.notNull()))
@@ -145,6 +147,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         maybeAdd(GJavaDate(LocalDate::class.nullableType(), DATE))
         maybeAdd(GJavaDate(LocalDate::class.nonNullType(), DATE.notNull()))
+
+        maybeAdd(GJavaDate(LocalTime::class.nullableType(), TIME))
+        maybeAdd(GJavaDate(LocalTime::class.nonNullType(), TIME.notNull()))
 
         maybeAdd(GJavaDateTime(LocalDateTime::class.nullableType(), DATETIME))
         maybeAdd(GJavaDateTime(LocalDateTime::class.nonNullType(), DATETIME.notNull()))
