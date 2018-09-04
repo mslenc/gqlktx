@@ -18,7 +18,6 @@ import java.util.*
 import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
-import com.xs0.gqlktx.utils.awaitAll
 import com.xs0.gqlktx.utils.transformForJson
 import kotlinx.coroutines.experimental.*
 import mu.KLogging
@@ -220,7 +219,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         if (futures != null) {
             assert(concurrent)
             try {
-                val results = awaitAll(futures)
+                val results = futures.awaitAll()
                 for ((key, value) in results.filterNotNull()) {
                     putInJson(key, value, jsonResult)
                 }
@@ -298,7 +297,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 })
             }
 
-            val results = awaitAll(futures)
+            val results = futures.awaitAll()
 
             return JsonArray(results.map { transformForJson(it) })
         } else if (kind == TypeKind.SCALAR || kind == TypeKind.ENUM) {
