@@ -270,7 +270,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             if (subRes != null)
                 return subRes
 
-            throw IllegalStateException("null received on a non-null field")
+            throw IllegalStateException("null received on a non-null field (path = $fieldPath)")
         } else if (result == null) {
             return null
         } else if (kind == TypeKind.LIST) {
@@ -282,7 +282,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 iterator = listType.getIterator(result)
             } catch (e: Throwable) {
                 logger.error("Failed to create iterator for $innerType", e)
-                throw IllegalStateException("Failed to create iterator", e)
+                throw IllegalStateException("Failed to create iterator (path = $fieldPath)", e)
             }
 
             val futures = ArrayList<Deferred<Any?>>()
