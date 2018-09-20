@@ -8,6 +8,14 @@ class Otherwise(val runOtherwise: Boolean)
 val runOtherwise = Otherwise(true)
 val skipOtherwise = Otherwise(false)
 
+fun <T: Any> Maybe<T?>?.newValueOr(oldValue: T?): T? {
+    return if (this != null) value else oldValue
+}
+
+fun <T: Any> Maybe<T?>?.nonNullValueOr(oldValue: T): T {
+    return if (this != null && value != null) value else oldValue
+}
+
 inline fun <T: Any> Maybe<T?>?.ifSet(block: (T?) -> Unit): Otherwise {
     return if (this != null) {
         block(value)
