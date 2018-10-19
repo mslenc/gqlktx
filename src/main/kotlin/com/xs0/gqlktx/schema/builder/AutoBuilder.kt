@@ -148,8 +148,8 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         maybeAdd(GJavaDate(LocalDate::class.nullableType(), DATE))
         maybeAdd(GJavaDate(LocalDate::class.nonNullType(), DATE.notNull()))
 
-        maybeAdd(GJavaDate(LocalTime::class.nullableType(), TIME))
-        maybeAdd(GJavaDate(LocalTime::class.nonNullType(), TIME.notNull()))
+        maybeAdd(GJavaTime(LocalTime::class.nullableType(), TIME))
+        maybeAdd(GJavaTime(LocalTime::class.nonNullType(), TIME.notNull()))
 
         maybeAdd(GJavaDateTime(LocalDateTime::class.nullableType(), DATETIME))
         maybeAdd(GJavaDateTime(LocalDateTime::class.nonNullType(), DATETIME.notNull()))

@@ -4,7 +4,6 @@ import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
-import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.reflect.KType
 

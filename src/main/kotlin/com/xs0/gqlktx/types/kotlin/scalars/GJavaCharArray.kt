@@ -5,7 +5,6 @@ import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
 import kotlin.reflect.KType
-import kotlin.reflect.full.starProjectedType
 
 class GJavaCharArray<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): CharArray {

@@ -11,7 +11,7 @@ import kotlin.reflect.full.isSuperclassOf
 class GJavaStandardEnum<CTX>(type: KType, gqlType: GEnumType, private val valuesByName: Map<String, Any>) : GJavaScalarLikeType<CTX>(type, gqlType) {
     init {
         if (!Enum::class.isSuperclassOf(type.classifier as? KClass<*> ?: String::class))
-            throw IllegalArgumentException("Not an enum type: " + type)
+            throw IllegalArgumentException("Not an enum type: $type")
     }
 
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Any {

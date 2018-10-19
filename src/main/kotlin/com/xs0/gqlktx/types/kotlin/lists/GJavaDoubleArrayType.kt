@@ -7,7 +7,6 @@ import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
 import io.vertx.core.json.JsonArray
 import kotlin.reflect.full.createType
-import kotlin.reflect.full.starProjectedType
 
 class GJavaDoubleArrayType<CTX>(gqlType: GType, elType: GJavaType<CTX>) : GJavaListLikeType<CTX>(DoubleArray::class.createType(), gqlType, elType) {
     init {

@@ -9,7 +9,7 @@ import kotlin.reflect.KType
 class GJavaChar<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
     init {
         if (type.classifier != Char::class)
-            throw IllegalArgumentException("Not a char type: " + type)
+            throw IllegalArgumentException("Not a char type: $type")
     }
 
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Char {
