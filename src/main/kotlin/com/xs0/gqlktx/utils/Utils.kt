@@ -46,7 +46,7 @@ fun transformForJson(value: Any?): Any? {
     return when (value) {
         null -> null
         is Enum<*> -> value.name
-        is ByteArray -> Base64.getEncoder().encodeToString(value)
+        is ByteArray -> Base64.getUrlEncoder().withoutPadding().encodeToString(value)
         is Instant -> DateTimeFormatter.ISO_INSTANT.format(value)
         else -> value
     }

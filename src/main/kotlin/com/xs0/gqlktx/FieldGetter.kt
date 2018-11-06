@@ -7,9 +7,11 @@ import io.vertx.core.Handler
 import mu.KLogging
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CompletableFuture
-import kotlin.coroutines.experimental.Continuation
-import kotlin.coroutines.experimental.suspendCoroutine
-import kotlin.coroutines.experimental.intrinsics.suspendCoroutineOrReturn
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.reflect.KCallable
 
 class PublicParamInfo(
@@ -85,7 +87,7 @@ class FieldGetterCoroutine<in CTX>(
     }
 
     suspend override fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
-        return suspendCoroutineOrReturn { cont ->
+        return suspendCoroutineUninterceptedOrReturn<Any?> { cont ->
             val args = arrayOfNulls<Any?>(params.size)
 
             for (i in params.indices) {
@@ -104,7 +106,7 @@ class FieldGetterCoroutine<in CTX>(
             }
 
             try {
-                return@suspendCoroutineOrReturn callable.call(*args)
+                return@suspendCoroutineUninterceptedOrReturn callable.call(*args)
             } catch (e: InvocationTargetException) {
                 throw e.targetException
             }

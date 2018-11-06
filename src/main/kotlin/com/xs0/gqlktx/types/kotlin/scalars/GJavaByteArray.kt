@@ -19,7 +19,7 @@ class GJavaByteArray<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX
             throw ValidationException("Bytes values in JSON must be encoded as base64 strings")
 
         try {
-            return Base64.getDecoder().decode(value)
+            return Base64.getUrlDecoder().decode(value)
         } catch (e: IllegalArgumentException) {
             throw ValidationException("Couldn't base64-decode value: " + e.message)
         }

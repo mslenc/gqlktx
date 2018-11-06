@@ -19,8 +19,9 @@ import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
 import com.xs0.gqlktx.utils.transformForJson
-import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.*
 import mu.KLogging
+import org.slf4j.LoggerFactory
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import kotlin.reflect.KCallable
@@ -33,9 +34,19 @@ interface QueryExecutor {
 }
 
 object SimpleQueryExecutor : QueryExecutor {
+    private val log = LoggerFactory.getLogger(SimpleQueryExecutor::class.java)
+
     override suspend fun <SCHEMA: Any, CTX>
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput): JsonObject {
-        return SimpleQueryState(schema, rootObject, context, queryInput).executeRequest()
+        val startedAt = System.currentTimeMillis()
+        val result = SimpleQueryState(schema, rootObject, context, queryInput).executeRequest()
+
+        if (log.isInfoEnabled) {
+            val endedAt = System.currentTimeMillis()
+            log.info("Query took {} ms", endedAt - startedAt)
+        }
+
+        return result
     }
 }
 
@@ -184,7 +195,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             }
 
             if (concurrent) {
-                futures!!.add(async(Unconfined) {
+                futures!!.add(coroutineScope { async {
                     var res: Any?
                     try {
                         res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
@@ -198,7 +209,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                         throw FieldException("Couldn't follow schema due to child error", parentPath)
 
                     return@async Pair(responseKey, res)
-                })
+                }})
             } else {
                 var res: Any?
                 try {
@@ -292,9 +303,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 val idx = index++
                 val elPath = fieldPath.listElement(idx)
 
-                futures.add(async(Unconfined) {
+                futures.add(coroutineScope { async {
                     completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)
-                })
+                }})
             }
 
             val results = futures.awaitAll()
