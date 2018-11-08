@@ -4,12 +4,21 @@ import com.xs0.gqlktx.exec.SimpleQueryExecutor
 import com.xs0.gqlktx.schema.builder.AutoBuilder
 import com.xs0.gqlktx.utils.QueryInput
 import io.vertx.core.json.JsonObject
+import io.vertx.ext.unit.junit.RunTestOnContext
+import io.vertx.ext.unit.junit.VertxUnitRunner
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(VertxUnitRunner::class)
 class FirstTest {
+    @Rule
+    @JvmField
+    var rule = RunTestOnContext()
+
     @Test
     fun aResultShouldBeReturned() {
         val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)

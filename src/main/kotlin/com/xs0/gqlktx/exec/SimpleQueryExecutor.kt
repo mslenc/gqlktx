@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.exec
 
+import com.github.mslenc.dbktx.util.vertxDefer
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.parser.GraphQLParser
@@ -195,7 +196,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             }
 
             if (concurrent) {
-                futures!!.add(coroutineScope { async {
+                futures!!.add(vertxDefer {
                     var res: Any?
                     try {
                         res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
@@ -208,8 +209,8 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                     if (res == null && !fieldType.isNullAllowed())
                         throw FieldException("Couldn't follow schema due to child error", parentPath)
 
-                    return@async Pair(responseKey, res)
-                }})
+                    Pair(responseKey, res)
+                })
             } else {
                 var res: Any?
                 try {
@@ -303,9 +304,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 val idx = index++
                 val elPath = fieldPath.listElement(idx)
 
-                futures.add(coroutineScope { async {
+                futures.add(vertxDefer {
                     completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)
-                }})
+                })
             }
 
             val results = futures.awaitAll()

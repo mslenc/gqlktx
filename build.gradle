@@ -26,7 +26,7 @@ repositories {
 
 dependencies {
     // via jitpack
-    compile 'com.github.mslenc:dbktx:0.8.0'
+    compile 'com.github.mslenc:dbktx:0.8.4'
 
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
@@ -40,6 +40,7 @@ dependencies {
     compile 'io.github.lukehutch:fast-classpath-scanner:2.21'
 
     testCompile "junit:junit:4.12"
+    testCompile "io.vertx:vertx-unit:$vertx_version"
 }
 
 compileKotlin {
