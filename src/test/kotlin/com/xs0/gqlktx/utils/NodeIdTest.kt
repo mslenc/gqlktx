@@ -169,7 +169,7 @@ class NodeIdTest {
         }
 
         val encoded = id.toPublicId()
-        Base64.getDecoder().decode(encoded) // check it's valid base64
+        Base64.getUrlDecoder().decode(encoded) // check it's valid base64
 
         val decoded = NodeId.fromPublicID(encoded)
 

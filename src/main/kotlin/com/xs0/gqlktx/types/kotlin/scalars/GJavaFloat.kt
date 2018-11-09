@@ -8,13 +8,10 @@ import kotlin.reflect.KType
 
 class GJavaFloat<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Float {
-        val d: Double
-        if (value is Double) {
-            d = value
-        } else if (value is Number) {
-            d = value.toDouble()
-        } else {
-            throw ValidationException("Expected a number, but got something else")
+        val d: Double = when (value) {
+            is Double -> value
+            is Number -> value.toDouble()
+            else -> throw ValidationException("Expected a number, but got something else")
         }
 
         if (d.isNaN())

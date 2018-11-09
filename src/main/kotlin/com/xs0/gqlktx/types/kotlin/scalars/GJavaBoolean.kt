@@ -9,7 +9,7 @@ import kotlin.reflect.KType
 class GJavaBoolean<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
     init {
         if (type.classifier != Boolean::class)
-            throw IllegalArgumentException("Not a boolean type: " + type)
+            throw IllegalArgumentException("Not a boolean type: $type")
     }
 
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Boolean {

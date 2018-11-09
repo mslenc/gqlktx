@@ -137,7 +137,6 @@ fun <SCHEMA: Any> findRootMethod(schema: KClass<SCHEMA>,
     return implicitRoot
 }
 
-
 fun ignoreContextFunc(member: KCallable<*>, ctx: KClass<*>): Boolean {
     if (member.valueParameters.isNotEmpty())
         return true
@@ -171,6 +170,9 @@ fun ignoreContextFunc(member: KCallable<*>, ctx: KClass<*>): Boolean {
 
     val retType = member.returnType.classifier
     if (retType == null || retType == Any::class || retType !is KClass<*>)
+        return true
+
+    if (retType.qualifiedName?.startsWith("kotlin.") != false)
         return true
 
     if (member.returnType.arguments.isNotEmpty())

@@ -44,7 +44,7 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
 
     class Builder internal constructor(private val typeId: String) {
         private val encoded: StringOutputStream = StringOutputStream()
-        private val base64: OutputStream = Base64.getEncoder().withoutPadding().wrap(encoded)
+        private val base64: OutputStream = Base64.getUrlEncoder().withoutPadding().wrap(encoded)
         private val partWriter: PackedIdListWriter = PackedIdListWriter(base64)
         private val parts: ArrayList<Any> = ArrayList()
 
@@ -145,7 +145,7 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
             if (encodedId == CREATE_NEW.encoded)
                 return CREATE_NEW
 
-            val reader = PackedIdListReader(Base64.getDecoder().wrap(StringInputStream(encodedId)))
+            val reader = PackedIdListReader(Base64.getUrlDecoder().wrap(StringInputStream(encodedId)))
 
             try {
                 val typeIdObj = reader.readNext()
