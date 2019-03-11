@@ -1,6 +1,5 @@
 package com.xs0.gqlktx.exec
 
-import com.github.mslenc.dbktx.util.vertxDefer
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.parser.GraphQLParser
@@ -141,7 +140,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root(), concurrent=false)
     }
 
-    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath, concurrent: Boolean = true): JsonObject? {
+    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath, concurrent: Boolean = true): JsonObject? = supervisorScope {
         val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
 
         val jsonResult = JsonObject()
@@ -196,7 +195,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             }
 
             if (concurrent) {
-                futures!!.add(vertxDefer {
+                futures!!.add(async(start = CoroutineStart.UNDISPATCHED) {
                     var res: Any?
                     try {
                         res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
@@ -237,11 +236,11 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 }
             } catch (e: Throwable) {
                 handleException(e)
-                return null
+                return@supervisorScope null
             }
         }
 
-        return jsonResult
+        jsonResult
     }
 
     private fun extractMessage(e: Throwable): String? {
@@ -267,7 +266,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: JsonObject, fieldPath: FieldPath): Any? {
+    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: JsonObject, fieldPath: FieldPath): Any? = supervisorScope {
         var fieldType = fieldType
         var gqlType = gqlType
         val kind = gqlType.kind
@@ -280,11 +279,11 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             val subRes = completeValue(fieldType, gqlType, fields, result, variableValues, fieldPath)
             if (subRes != null)
-                return subRes
+                return@supervisorScope subRes
 
             throw IllegalStateException("null received on a non-null field (path = $fieldPath)")
         } else if (result == null) {
-            return null
+            return@supervisorScope null
         } else if (kind == TypeKind.LIST) {
             val listType = fieldType as GJavaListLikeType<CTX>
             val innerType = listType.elementType
@@ -304,17 +303,17 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 val idx = index++
                 val elPath = fieldPath.listElement(idx)
 
-                futures.add(vertxDefer {
+                futures.add(async(start = CoroutineStart.UNDISPATCHED) {
                     completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)
                 })
             }
 
             val results = futures.awaitAll()
 
-            return JsonArray(results.map { transformForJson(it) })
+            return@supervisorScope JsonArray(results.map { transformForJson(it) })
         } else if (kind == TypeKind.SCALAR || kind == TypeKind.ENUM) {
             fieldType as GJavaScalarLikeType<CTX>
-            return fieldType.toJson(result)
+            return@supervisorScope fieldType.toJson(result)
         } else {
             val objectType: GJavaObjectType<CTX>
             if (kind == TypeKind.UNION || kind == TypeKind.INTERFACE) {
@@ -325,7 +324,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             val subSelectionSet = mergeSelectionSets(fields)
 
-            return executeSelectionSet(subSelectionSet, objectType, result, variableValues, fieldPath)
+            return@supervisorScope executeSelectionSet(subSelectionSet, objectType, result, variableValues, fieldPath)
         }
     }
 

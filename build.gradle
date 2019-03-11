@@ -1,8 +1,8 @@
-group 'com.xs0'
-version '0.9.0'
+group 'com.github.mslenc'
+version '0.9.1'
 
 buildscript {
-    ext.kotlin_version = '1.3.10'
+    ext.kotlin_version = '1.3.21'
     ext.vertx_version = '3.5.4'
 
     repositories {
@@ -15,10 +15,12 @@ buildscript {
 
 apply plugin: 'java'
 apply plugin: 'kotlin'
+apply plugin: 'maven'
 
 sourceCompatibility = 1.8
 
 repositories {
+    mavenLocal()
     mavenCentral()
     jcenter()
     maven { url 'https://jitpack.io' }
@@ -26,7 +28,7 @@ repositories {
 
 dependencies {
     // via jitpack
-    compile 'com.github.mslenc:dbktx:0.8.5'
+    compile 'com.github.mslenc:dbktx:0.10.0'
 
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
