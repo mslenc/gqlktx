@@ -29,8 +29,8 @@ class UtilsTest {
         val encoded = base64EncodeULong(l)
 
         assertNotNull(encoded)
-        assertTrue("" + l + ": " + encoded, encoded.length >= 1)
-        assertTrue("" + l + ": " + encoded, encoded.length <= 11)
+        assertTrue("$l: $encoded", encoded.length >= 1)
+        assertTrue("$l: $encoded", encoded.length <= 11)
 
         Base64.getUrlDecoder().decode(encoded) // throws IllegalArgEx if not base64
 
