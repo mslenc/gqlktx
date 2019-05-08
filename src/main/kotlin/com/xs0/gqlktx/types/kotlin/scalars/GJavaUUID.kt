@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -24,7 +25,15 @@ class GJavaUUID<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(typ
         }
     }
 
-    override fun toJson(result: Any): Any {
-        return result.toString()
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON,
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                result.toString()
+
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

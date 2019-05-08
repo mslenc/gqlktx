@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -25,7 +26,15 @@ class GJavaBigDecimal<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CT
         }
     }
 
-    override fun toJson(result: Any): Any {
-        return (result as BigDecimal).toDouble()
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON ->
+                (result as BigDecimal).toDouble()
+
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET,
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

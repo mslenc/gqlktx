@@ -9,8 +9,6 @@ import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.*
 import com.xs0.gqlktx.types.kotlin.*
 import com.xs0.gqlktx.utils.QueryInput
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 import kotlin.reflect.KClass
 
 import java.util.*
@@ -18,7 +16,6 @@ import java.util.*
 import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
-import com.xs0.gqlktx.utils.transformForJson
 import kotlinx.coroutines.*
 import mu.KLogging
 import org.slf4j.LoggerFactory
@@ -30,16 +27,16 @@ import kotlin.reflect.full.isSuperclassOf
 
 interface QueryExecutor {
     suspend fun <SCHEMA: Any, CTX>
-    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput): JsonObject
+    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion = ScalarCoercion.JSON): Map<String, Any?>
 }
 
 object SimpleQueryExecutor : QueryExecutor {
     private val log = LoggerFactory.getLogger(SimpleQueryExecutor::class.java)
 
     override suspend fun <SCHEMA: Any, CTX>
-    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput): JsonObject {
+    execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
         val startedAt = System.currentTimeMillis()
-        val result = SimpleQueryState(schema, rootObject, context, queryInput).executeRequest()
+        val result = SimpleQueryState(schema, rootObject, context, scalarCoercion, queryInput).executeRequest()
 
         if (log.isInfoEnabled) {
             val endedAt = System.currentTimeMillis()
@@ -54,23 +51,24 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         private val schema: Schema<SCHEMA, CTX>,
         private val rootObject: SCHEMA,
         private val context: CTX,
+        private val scalarCoercion: ScalarCoercion,
         queryInput: QueryInput) {
 
     private val rawQuery: String = queryInput.query
     private val opName: String? = queryInput.opName
-    private val rawVariables: JsonObject = queryInput.variables ?: JsonObject()
+    private val rawVariables: Map<String, Any?> = queryInput.variables ?: emptyMap()
     private val mutationsAllowed = queryInput.allowMutations
 
     private val fragmentsByName = HashMap<String, FragmentDefinition>()
     private val opsByName = HashMap<String?, OperationDefinition>()
 
-    private val errors = JsonArray()
+    private val errors = ArrayList<Any?>()
 
     private lateinit var inputVarParser: InputVarParser<CTX>
     private var query: Document? = null
 
-    suspend fun executeRequest(): JsonObject {
-        var data: JsonObject?
+    suspend fun executeRequest(): Map<String, Any?> {
+        var data: Map<String, Any?>?
         try {
             data = doExecuteRequest()
         } catch (e: Exception) {
@@ -78,7 +76,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             data = null
         }
 
-        return sendResponse(data, errors)
+        return createResponse(data, errors)
     }
 
     private fun handleException(e: Throwable) {
@@ -95,7 +93,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    suspend fun doExecuteRequest(): JsonObject? {
+    suspend fun doExecuteRequest(): Map<String, Any?>? {
         parseQuery()
         makeIndex()
         val op = operation
@@ -132,18 +130,18 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         throw QueryException("No subscriptions supported (yet)")
     }
 
-    private suspend fun doExecuteQuery(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
+    private suspend fun doExecuteQuery(op: OperationDefinition, variableValues: Map<String, Any?>, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
         return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root())
     }
 
-    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: JsonObject, initialValue: Any, queryType: GJavaObjectType<CTX>): JsonObject? {
+    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: Map<String, Any?>, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
         return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root(), concurrent=false)
     }
 
-    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: JsonObject, parentPath: FieldPath, concurrent: Boolean = true): JsonObject? = supervisorScope {
+    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: Map<String, Any?>, parentPath: FieldPath, concurrent: Boolean = true): Map<String, Any?>? = supervisorScope {
         val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
 
-        val jsonResult = JsonObject()
+        val jsonResult = LinkedHashMap<String, Any?>()
 
         val futures: ArrayList<Deferred<Pair<String, Any?>?>>?
         if (concurrent) {
@@ -223,7 +221,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (res == null && !fieldType.isNullAllowed())
                     throw FieldException("Couldn't follow schema due to child error", parentPath)
 
-                putInJson(responseKey, res, jsonResult)
+                jsonResult[responseKey] = res
             }
         }
 
@@ -232,7 +230,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             try {
                 val results = futures.awaitAll()
                 for ((key, value) in results.filterNotNull()) {
-                    putInJson(key, value, jsonResult)
+                    jsonResult[key] = value
                 }
             } catch (e: Throwable) {
                 handleException(e)
@@ -251,7 +249,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return null
     }
 
-    private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, variableValues: JsonObject, fieldPath: FieldPath): Any? {
+    private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, variableValues: Map<String, Any?>, fieldPath: FieldPath): Any? {
         try {
             val field = fields[0]
             val argumentValues = coerceArgumentValues(field, variableValues, fieldMethod, fieldPath)
@@ -266,7 +264,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: JsonObject, fieldPath: FieldPath): Any? = supervisorScope {
+    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: Map<String, Any?>, fieldPath: FieldPath): Any? = supervisorScope {
         var fieldType = fieldType
         var gqlType = gqlType
         val kind = gqlType.kind
@@ -310,10 +308,10 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             val results = futures.awaitAll()
 
-            return@supervisorScope JsonArray(results.map { transformForJson(it) })
+            return@supervisorScope results
         } else if (kind == TypeKind.SCALAR || kind == TypeKind.ENUM) {
             fieldType as GJavaScalarLikeType<CTX>
-            return@supervisorScope fieldType.toJson(result)
+            return@supervisorScope fieldType.toJson(result, scalarCoercion)
         } else {
             val objectType: GJavaObjectType<CTX>
             if (kind == TypeKind.UNION || kind == TypeKind.INTERFACE) {
@@ -348,7 +346,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         throw IllegalStateException("result of $resultClass did not resolve to any known implementation")
     }
 
-    private fun coerceArgumentValues(field: SelectionField, variableValues: JsonObject, fieldMethod: FieldGetter<CTX>, fieldPath: FieldPath): Map<String, Any?> {
+    private fun coerceArgumentValues(field: SelectionField, variableValues: Map<String, Any?>, fieldMethod: FieldGetter<CTX>, fieldPath: FieldPath): Map<String, Any?> {
         val coercedValues = LinkedHashMap<String, Any?>()
         val argumentValues = field.arguments
 
@@ -434,7 +432,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return coercedValues
     }
 
-    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, variableValues: JsonObject, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
+    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, variableValues: Map<String, Any?>, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
         val visitedFragments = visitedFragments ?: HashSet()
 
         val groupedFields = LinkedHashMap<String, MutableList<SelectionField>>()
@@ -490,7 +488,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    private fun shouldSkip(selection: Selection, variableValues: JsonObject): Boolean {
+    private fun shouldSkip(selection: Selection, variableValues: Map<String, Any?>): Boolean {
         val skipDir = selection.findDirective("skip")
         if (skipDir != null) {
             val skip = extractBooleanValue(skipDir, "if", variableValues)
@@ -508,17 +506,21 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return false
     }
 
-    private fun extractBooleanValue(directive: Directive, arg: String, variableValues: JsonObject): Boolean? {
+    private fun extractBooleanValue(directive: Directive, arg: String, variableValues: Map<String, Any?>): Boolean? {
         val valueOrVar = directive.args[arg] ?: return null
 
-        if (valueOrVar is Variable)
-            return variableValues.getBoolean(valueOrVar.name)
+        if (valueOrVar is Variable) {
+            val varValue = variableValues[valueOrVar.name]
+            if (varValue is Boolean?)
+                return varValue
+            throw ValidationException("Variable valueOrVar.name should be a boolean")
+        }
 
         return (valueOrVar as? ValueBool)?.value
     }
 
-    private fun coerceVariableValues(op: OperationDefinition): JsonObject {
-        val coercedValues = JsonObject()
+    private fun coerceVariableValues(op: OperationDefinition): Map<String, Any?> {
+        val coercedValues = LinkedHashMap<String, Any?>()
 
         for ((varName, value) in op.varDefs) {
             val varTypeDef = value.type
@@ -530,12 +532,12 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (rawVal == null) {
                     if (type.kind == TypeKind.NON_NULL)
                         throw QueryException("Invalid null data for variable $$varName")
-                    coercedValues.putNull(varName)
+                    coercedValues[varName] = null
                 } else {
-                    coercedValues.put(varName, type.coerceValue(rawVal))
+                    coercedValues[varName] = type.coerceValue(rawVal)
                 }
             } else if (defaultValue != null) {
-                coercedValues.put(varName, defaultValue.toJson())
+                coercedValues[varName] = defaultValue.toJson()
             } else {
                 if (varTypeDef is NotNullType)
                     throw QueryException("Missing data for variable $$varName")
@@ -570,28 +572,29 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         } else opsByName.get<String?, OperationDefinition>(opName) ?: throw QueryException("Operation ${opName} not found")
 
     private fun addError(message: String, fieldPath: FieldPath?, location: Token<*>?) {
-        val error = JsonObject()
-        error.put("message", message)
+        val error = mutableMapOf<String, Any?>("message" to message)
+
         if (fieldPath != null)
-            error.put("path", fieldPath.toArray())
+            error["path"] = fieldPath.toArray()
+
         if (location != null) {
-            val loc = JsonObject()
-            loc.put("line", location.row)
-            loc.put("column", location.column)
-            error.put("locations", JsonArray().add(loc))
+            error["locations"] = arrayOf(mapOf(
+                "line" to location.row,
+                "column" to location.column
+            ))
         }
 
         errors.add(error)
     }
 
-    private fun sendResponse(data: JsonObject?, errors: JsonArray?): JsonObject {
-        val result = JsonObject()
+    private fun createResponse(data: Map<String, Any?>?, errors: List<Any?>?): Map<String, Any?> {
+        val result = LinkedHashMap<String, Any?>()
 
-        if (data != null && !data.isEmpty)
-            result.put("data", data)
+        if (data != null && data.isNotEmpty())
+            result["data"] = data
 
-        if (errors != null && !errors.isEmpty)
-            result.put("errors", errors)
+        if (errors != null && errors.isNotEmpty())
+            result["errors"] = errors
 
         return result
     }
@@ -614,15 +617,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         this.query = GraphQLParser.parseQueryDoc(rawQuery)
     }
 
-    companion object : KLogging() {
-        fun putInJson(key: String, value: Any?, json: JsonObject) {
-            if (value == null) {
-                json.putNull(key)
-            } else {
-                json.put(key, transformForJson(value))
-            }
-        }
-    }
+    companion object : KLogging()
 }
 
 

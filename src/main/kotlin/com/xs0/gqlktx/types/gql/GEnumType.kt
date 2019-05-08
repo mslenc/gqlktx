@@ -3,8 +3,6 @@ package com.xs0.gqlktx.types.gql
 import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroEnumValue
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 import java.util.ArrayList
 

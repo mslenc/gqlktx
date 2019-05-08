@@ -4,7 +4,6 @@ import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GType
-import io.vertx.core.json.JsonArray
 
 import kotlin.reflect.KType
 
@@ -41,8 +40,8 @@ abstract class GJavaListLikeType<CTX>(type: KType, gqlType: GType, val elementTy
     abstract fun appendListElement(list: Any, index: Int, value: Any)
 
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Any {
-        val array: JsonArray
-        if (value is JsonArray) {
+        val array: List<Any?>
+        if (value is List<*>) {
             array = value
         } else {
             throw ValidationException("Expected a list, but got something else")
@@ -51,5 +50,5 @@ abstract class GJavaListLikeType<CTX>(type: KType, gqlType: GType, val elementTy
         return transformFromJson(array, inputVarParser)
     }
 
-    protected abstract fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): Any
+    protected abstract fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): Any
 }

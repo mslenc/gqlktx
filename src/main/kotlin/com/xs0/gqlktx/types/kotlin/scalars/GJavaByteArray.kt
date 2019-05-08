@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -22,6 +23,18 @@ class GJavaByteArray<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX
             return Base64.getUrlDecoder().decode(value)
         } catch (e: IllegalArgumentException) {
             throw ValidationException("Couldn't base64-decode value: " + e.message)
+        }
+    }
+
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON,
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                Base64.getUrlEncoder().withoutPadding().encodeToString(result as ByteArray)
+
+            ScalarCoercion.NONE ->
+                result
         }
     }
 }

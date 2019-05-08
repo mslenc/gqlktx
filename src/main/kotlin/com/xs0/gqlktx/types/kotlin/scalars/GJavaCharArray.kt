@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -14,7 +15,15 @@ class GJavaCharArray<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX
         throw ValidationException("Expected a string")
     }
 
-    override fun toJson(result: Any): Any {
-        return String(result as CharArray)
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON,
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                String(result as CharArray)
+
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

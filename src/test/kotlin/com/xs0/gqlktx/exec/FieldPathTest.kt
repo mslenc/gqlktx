@@ -8,33 +8,33 @@ class FieldPathTest {
     @Test
     fun testRoot() {
         val res = FieldPath.root().toArray()
-        assertEquals(0, res.size().toLong())
+        assertEquals(0, res.size)
     }
 
     @Test
     fun testFields() {
         val res = FieldPath.root().subField("abc").subField("cde").toArray()
-        assertEquals(2, res.size().toLong())
-        assertEquals("abc", res.getString(0))
-        assertEquals("cde", res.getString(1))
+        assertEquals(2, res.size)
+        assertEquals("abc", res[0])
+        assertEquals("cde", res[1])
     }
 
     @Test
     fun testIndexes() {
         val res = FieldPath.root().listElement(2).listElement(9).listElement(4).toArray()
-        assertEquals(3, res.size().toLong())
-        assertEquals(2, res.getInteger(0)!!.toInt().toLong())
-        assertEquals(9, res.getInteger(1)!!.toInt().toLong())
-        assertEquals(4, res.getInteger(2)!!.toInt().toLong())
+        assertEquals(3, res.size)
+        assertEquals(2, res[0])
+        assertEquals(9, res[1])
+        assertEquals(4, res[2])
     }
 
     @Test
     fun testMixed() {
         val res = FieldPath.root().subField("hero").subField("heroFriends").listElement(1).subField("name").toArray()
-        assertEquals(4, res.size().toLong())
-        assertEquals("hero", res.getString(0))
-        assertEquals("heroFriends", res.getString(1))
-        assertEquals(1, res.getInteger(2)!!.toInt().toLong())
-        assertEquals("name", res.getString(3))
+        assertEquals(4, res.size)
+        assertEquals("hero", res[0])
+        assertEquals("heroFriends", res[1])
+        assertEquals(1, res[2])
+        assertEquals("name", res[3])
     }
 }

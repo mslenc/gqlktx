@@ -5,7 +5,6 @@ import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
-import io.vertx.core.json.JsonArray
 import kotlin.reflect.full.createType
 
 class GJavaIntArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>(IntArray::class.createType(), gqlType, elementType) {
@@ -30,12 +29,12 @@ class GJavaIntArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJav
         (list as IntArray)[index] = (value as Number).toInt()
     }
 
-    override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): IntArray {
-        val n = array.size()
+    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): IntArray {
+        val n = array.size
 
         val res = IntArray(n)
         for (i in 0 until n) {
-            val o = array.getValue(i) ?: throw ValidationException("Null encountered in list of non-null ints")
+            val o = array[i] ?: throw ValidationException("Null encountered in list of non-null ints")
 
             if (o is Int) {
                 res[i] = o

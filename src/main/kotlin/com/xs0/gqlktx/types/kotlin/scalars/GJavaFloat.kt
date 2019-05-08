@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -21,5 +22,17 @@ class GJavaFloat<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(ty
             throw ValidationException("Value outside of range")
 
         return d.toFloat()
+    }
+
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when (coercion) {
+            ScalarCoercion.STRICT_JSON,
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                (result as Number).toDouble()
+
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

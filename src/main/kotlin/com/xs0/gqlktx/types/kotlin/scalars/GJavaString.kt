@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -18,5 +19,9 @@ class GJavaString<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(t
         } else {
             throw ValidationException("Expected a string, but got something else")
         }
+    }
+
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return result
     }
 }

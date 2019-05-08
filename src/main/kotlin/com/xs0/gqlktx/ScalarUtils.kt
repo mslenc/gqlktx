@@ -1,5 +1,6 @@
 package com.xs0.gqlktx
 
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -126,5 +127,18 @@ object ScalarUtils {
             return str.toString()
 
         throw ValidationException("Expected a valid datetime string in format \"YYYY-MM-DDThh:mm:ss\"")
+    }
+
+    fun validateInstant(str: Any): String {
+        if (str is CharSequence) {
+            try {
+                Instant.parse(str)
+                return str.toString()
+            } catch (e: Exception ) {
+                // throw below
+            }
+        }
+
+        throw ValidationException("Expected a valid Instant string in format \"YYYY-MM-DDThh:mm:ssZ\"")
     }
 }

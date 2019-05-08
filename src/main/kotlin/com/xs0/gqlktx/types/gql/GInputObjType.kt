@@ -2,7 +2,6 @@ package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.schema.builder.TypeKind
-import io.vertx.core.json.JsonObject
 
 class GInputObjType(name: String, fields: Map<String, GField>) : GFieldedType(name, fields) {
 
@@ -14,28 +13,30 @@ class GInputObjType(name: String, fields: Map<String, GField>) : GFieldedType(na
             return true
         }
 
-    override fun coerceValue(raw: Any): JsonObject {
-        if (raw !is JsonObject)
-            throw QueryException("Expected a JSON object value for type " + gqlTypeString)
+    override fun coerceValue(raw: Any): Map<String, Any?> {
+        if (raw !is Map<*, *>)
+            throw QueryException("Expected a JSON object value for type $gqlTypeString")
 
-        if (!fields.keys.containsAll(raw.fieldNames())) {
-            val unknown = raw.fieldNames() - fields.keys
+        raw as Map<String, Any?>
+
+        if (!fields.keys.containsAll(raw.keys)) {
+            val unknown = raw.keys - fields.keys
             throw QueryException("Unknown field(s) in value of type $gqlTypeString: $unknown")
         }
 
-        val coerced = JsonObject()
+        val coerced = LinkedHashMap<String, Any?>()
         for ((key, field) in fields) {
-            if (key !in raw.fieldNames())
+            if (key !in raw.keys)
                 continue
 
-            val rawValue: Any? = raw.getValue(key)
+            val rawValue: Any? = raw[key]
             if (rawValue == null) {
                 if (field.type.kind == TypeKind.NON_NULL)
                     throw QueryException("Null value not allowed for field $key")
 
-                coerced.putNull(key)
+                coerced[key] = null
             } else {
-                coerced.put(key, field.type.coerceValue(rawValue))
+                coerced[key] = field.type.coerceValue(rawValue)
             }
         }
 

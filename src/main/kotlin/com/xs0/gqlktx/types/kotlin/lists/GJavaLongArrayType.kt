@@ -5,7 +5,6 @@ import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
-import io.vertx.core.json.JsonArray
 import kotlin.reflect.full.createType
 
 class GJavaLongArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>(LongArray::class.createType(), gqlType, elementType) {
@@ -30,12 +29,12 @@ class GJavaLongArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJa
         (list as LongArray)[index] = (value as Number).toLong()
     }
 
-    override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): LongArray {
-        val n = array.size()
+    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): LongArray {
+        val n = array.size
 
         val res = LongArray(n)
         for (i in 0 until n) {
-            val o = array.getValue(i) ?: throw ValidationException("Null encountered in list of non-null longs")
+            val o = array[i] ?: throw ValidationException("Null encountered in list of non-null longs")
 
             if (o is Long) {
                 res[i] = o

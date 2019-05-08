@@ -3,10 +3,8 @@ package schema1
 import com.xs0.gqlktx.GqlField
 import com.xs0.gqlktx.trimToNull
 import com.xs0.gqlktx.utils.NodeId
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
-import io.vertx.core.Handler
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import kotlin.collections.ArrayList
 
 object Data {
@@ -63,8 +61,10 @@ object QueryRoot {
     }
 
     @GqlField("tags")
-    fun bibi(handler: Handler<AsyncResult<Collection<Tag>>>) {
-        handler.handle(Future.succeededFuture(Data.tags.values))
+    fun bibi(): CompletableFuture<Collection<Tag>> {
+        val future = CompletableFuture<Collection<Tag>>()
+        future.complete(Data.tags.values)
+        return future
     }
 }
 

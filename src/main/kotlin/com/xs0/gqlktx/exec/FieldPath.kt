@@ -1,7 +1,5 @@
 package com.xs0.gqlktx.exec
 
-import io.vertx.core.json.JsonArray
-
 class FieldPath private constructor(private val parent: FieldPath?, private val fieldName: String?, private val listIndex: Int?) {
 
     fun subField(fieldName: String): FieldPath {
@@ -12,13 +10,13 @@ class FieldPath private constructor(private val parent: FieldPath?, private val 
         return FieldPath(this, null, listIndex)
     }
 
-    fun toArray(): JsonArray {
-        val result = JsonArray()
+    fun toArray(): List<Any?> {
+        val result = ArrayList<Any?>()
         toArray(result)
         return result
     }
 
-    private fun toArray(result: JsonArray) {
+    private fun toArray(result: ArrayList<Any?>) {
         if (parent != null) {
             parent.toArray(result)
 

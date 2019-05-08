@@ -2,9 +2,7 @@ package com.xs0.gqlktx
 
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.parser.GraphQLParser
-import io.vertx.core.AsyncResult
-import io.vertx.core.Future
-import io.vertx.core.Handler
+import java.util.concurrent.CompletableFuture
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 
@@ -13,7 +11,6 @@ enum class ParamKind {
     PUBLIC, // public parameter
     CONTEXT, // object provided by context
     CONTINUATION, // for suspend functions
-    HANDLER, // for VERTX_HANDLER functions
     NULL // for ignored parameters which are also T?
 }
 
@@ -31,7 +28,6 @@ class ParamInfo<CTX> private constructor(
     val ctxGetter: SyncInvokable<CTX>?
 ) {
     constructor(name: String, semiType: SemiType) : this(name, ParamKind.PUBLIC, semiType, null)
-    constructor(semiType: SemiType) : this("<handler>", ParamKind.HANDLER, semiType, null)
     constructor(ctxGetter: SyncInvokable<CTX>): this("<ctx>", ParamKind.CONTEXT, null, ctxGetter)
 
     constructor(kind: ParamKind) : this(kind.toString(), kind, null, null) {
@@ -63,11 +59,6 @@ class ParamInfo<CTX> private constructor(
             if (contextType != null) {
                 return ParamInfo(contextType)
             }
-
-            val handlerType = extractTypeParam(param.type, Handler::class, AsyncResult::class)
-            if (handlerType != null)
-                return ParamInfo(SemiType.create(handlerType) ?: return null)
-
 
 
             var semiType = SemiType.create(param.type)
@@ -159,7 +150,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
         false
     }
 
-    var retType = extractTypeParam(member.returnType, Future::class)
+    var retType = extractTypeParam(member.returnType, CompletableFuture::class)
     val isFuture = retType != null
 
     if (isFuture && isSuspend)
@@ -175,8 +166,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
     val params = ArrayList<ParamInfo<CTX>>()
     val publicParams = LinkedHashMap<String, PublicParamInfo>()
-    var parsedRetType = if (retType != null) SemiType.create(retType) else null
-    var isHandler = false
+    val parsedRetType = if (retType != null) SemiType.create(retType) else null
 
     nextParam@
     for (param in member.parameters) {
@@ -204,18 +194,6 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
                 publicParams[parsedParam.name] = PublicParamInfo(parsedParam.name, parsedParam.semiType!!, parsedDefault)
             }
 
-            ParamKind.HANDLER -> {
-                isHandler = true
-                if (!isVoid) {
-                    return nullOrThrowIf(forced) { "$member both returns something and takes a Handler parameter" }
-                } else
-                if (parsedRetType == null) {
-                    parsedRetType = parsedParam.semiType
-                } else {
-                    return nullOrThrowIf(forced) { "Parameter $param has two value returning methods" }
-                }
-            }
-
             ParamKind.CONTINUATION -> throw Error("continuation became visible")
         }
     }
@@ -232,8 +210,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
     return when {
         isSuspend -> FieldGetterCoroutine(parsedRetType, name, member, paramArray, publicParams)
-        isFuture -> FieldGetterVertxFuture(parsedRetType, name, member, paramArray, publicParams)
-        isHandler -> FieldGetterVertxHandler(parsedRetType, name, member, paramArray, publicParams)
+        isFuture -> FieldGetterCompletableFuture(parsedRetType, name, member, paramArray, publicParams)
         else -> FieldGetterRegularFunction(parsedRetType, name, member, paramArray, publicParams)
     }
 }

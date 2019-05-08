@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GEnumType
@@ -25,7 +26,15 @@ class GJavaStandardEnum<CTX>(type: KType, gqlType: GEnumType, private val values
         return valuesByName[s] ?: throw ValidationException("Unrecognized value " + s + " for enum " + gqlType.gqlTypeString)
     }
 
-    override fun toJson(result: Any): String {
-        return (result as Enum<*>).name
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON,
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                (result as Enum<*>).name
+
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

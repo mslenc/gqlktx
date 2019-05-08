@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GNotNullType
 import com.xs0.gqlktx.types.gql.GType
@@ -33,7 +34,5 @@ abstract class GJavaScalarLikeType<CTX>(type: KType, gqlType: GType) : GJavaType
         // ok - scalars can be both inputs and outputs
     }
 
-    open fun toJson(result: Any): Any {
-        return result
-    }
+    abstract fun toJson(result: Any, coercion: ScalarCoercion): Any
 }

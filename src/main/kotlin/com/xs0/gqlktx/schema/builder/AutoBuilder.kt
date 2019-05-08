@@ -17,6 +17,7 @@ import com.xs0.gqlktx.schema.builder.TypeKind.*
 import com.xs0.gqlktx.utils.NodeId
 import mu.KLogging
 import java.math.BigDecimal
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -100,6 +101,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val DATE = getOrCreateScalarType("Date", ScalarUtils::validateDate)
         val TIME = getOrCreateScalarType("Time", ScalarUtils::validateTime)
         val DATETIME = getOrCreateScalarType("DateTime", ScalarUtils::validateDateTime)
+        val INSTANT = getOrCreateScalarType("Instant", ScalarUtils::validateInstant)
 
         val javaByte = maybeAdd(GJavaByte(Byte::class.nonNullType(), INT.notNull()))
         val javaShort = maybeAdd(GJavaShort(Short::class.nonNullType(), INT.notNull()))
@@ -153,6 +155,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         maybeAdd(GJavaDateTime(LocalDateTime::class.nullableType(), DATETIME))
         maybeAdd(GJavaDateTime(LocalDateTime::class.nonNullType(), DATETIME.notNull()))
+
+        maybeAdd(GJavaInstant(Instant::class.nullableType(), INSTANT))
+        maybeAdd(GJavaInstant(Instant::class.nonNullType(), INSTANT.notNull()))
     }
 
     internal fun setUpIntrospectionTypes() {

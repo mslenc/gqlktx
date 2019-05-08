@@ -2,8 +2,6 @@ package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.schema.builder.TypeKind
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 class GScalarType(name: String, private val varValueValidator: (Any)->Any) : GValueType(name) {
     override val kind: TypeKind

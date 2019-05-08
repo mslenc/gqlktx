@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -30,7 +31,17 @@ class GJavaShort<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(ty
         return intVal.toShort()
     }
 
-    override fun toJson(result: Any): Any {
-        return (result as Number).toInt()
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
+        return when(coercion) {
+            ScalarCoercion.STRICT_JSON ->
+                (result as Number).toDouble()
+
+            ScalarCoercion.JSON,
+            ScalarCoercion.SPREADSHEET ->
+                (result as Number).toInt()
+
+            ScalarCoercion.NONE ->
+                result
+        }
     }
 }

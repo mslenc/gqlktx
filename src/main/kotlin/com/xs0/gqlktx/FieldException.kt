@@ -1,9 +1,6 @@
 package com.xs0.gqlktx
 
 import com.xs0.gqlktx.exec.FieldPath
-import com.xs0.gqlktx.parser.Token
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 class FieldException: GraphQLException {
     val path: FieldPath
@@ -16,10 +13,8 @@ class FieldException: GraphQLException {
         this.path = path
     }
 
-    override fun toGraphQLError(): JsonObject {
-        val error = super.toGraphQLError()
-
-        error.put("path", path.toArray())
+    override fun toGraphQLError(): Map<String, Any?> {
+        return super.toGraphQLError() + ("path" to path.toArray())
 
 //        if (location != null) {
 //            val loc = JsonObject()
@@ -27,7 +22,5 @@ class FieldException: GraphQLException {
 //            loc.put("column", location.column)
 //            error.put("locations", JsonArray().add(loc))
 //        }
-
-        return error
     }
 }

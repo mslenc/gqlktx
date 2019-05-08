@@ -2,8 +2,6 @@ package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroType
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 abstract class GType protected constructor() {
     val introspector = GqlIntroType(this)

@@ -4,7 +4,6 @@ import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GListType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
-import io.vertx.core.json.JsonArray
 import kotlin.reflect.KType
 
 import java.util.*
@@ -76,11 +75,11 @@ class GJavaCollectionType<CTX>(listClass: KType, elementType: GJavaType<CTX>, gq
     }
 
     @Throws(Exception::class)
-    override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): Collection<Any?> {
-        val res = createList(array.size())
+    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): Collection<Any?> {
+        val res = createList(array.size)
 
-        for (i in 0 until array.size()) {
-            val el = array.getValue(i)
+        for (i in 0 until array.size) {
+            val el = array[i]
             if (el == null) {
                 if (elementType.isNullAllowed()) {
                     res.add(null)

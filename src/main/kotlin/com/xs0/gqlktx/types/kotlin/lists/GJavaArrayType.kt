@@ -1,10 +1,10 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
-import io.vertx.core.json.JsonArray
 
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -33,19 +33,27 @@ class GJavaArrayType<CTX>(type: KType, elementType: GJavaType<CTX>, gqlType: GTy
     }
 
     override fun getIterator(list: Any): Iterator<*> {
-        return (list as kotlin.Array<*>).iterator()
+        return (list as Array<*>).iterator()
     }
 
     override fun appendListElement(list: Any, index: Int, value: Any) {
         javaArray.set(list, index, value)
     }
 
-    override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): Any {
-        val n = array.size()
-        val res = createList(array.size())
+    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): Any {
+        val n = array.size
+        val res = createList(n)
 
-        for (i in 0 until n)
-            javaArray.set(res, i, elementType.getFromJson(array.getValue(i), inputVarParser))
+        for (i in 0 until n) {
+            val el = array[i]
+            if (el == null) {
+                if (!elementType.isNullAllowed())
+                    throw ValidationException("null encountered in list of non-nulls")
+            } else {
+                javaArray.set(res, i, elementType.getFromJson(el, inputVarParser))
+            }
+        }
+
 
         return res
     }

@@ -2,7 +2,6 @@ package com.xs0.gqlktx.testschemas.spec
 
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.builder.AutoBuilder
-import io.vertx.core.json.JsonObject
 import org.junit.Test
 
 
@@ -15,11 +14,11 @@ class TheTest {
     private val schema: Schema<SpecTestSchema, Unit>
         get() = AutoBuilder.build(SpecTestSchema::class, Unit::class)
 
-    private fun assertValidationSucceeds(query: String, opName: String?, parameters: JsonObject?) {
+    private fun assertValidationSucceeds(query: String, opName: String?, parameters: Map<String, Any?>?) {
 
     }
 
-    private fun assertValidationFails(query: String, opName: String?, parameters: JsonObject?) {
+    private fun assertValidationFails(query: String, opName: String?, parameters: Map<String, Any?>?) {
 
     }
 

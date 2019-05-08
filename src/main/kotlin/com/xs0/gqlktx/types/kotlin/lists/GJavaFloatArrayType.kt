@@ -5,7 +5,6 @@ import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
-import io.vertx.core.json.JsonArray
 import kotlin.reflect.full.createType
 
 class GJavaFloatArrayType<CTX>(gqlType: GType, elType: GJavaType<CTX>) : GJavaListLikeType<CTX>(FloatArray::class.createType(), gqlType, elType) {
@@ -30,12 +29,18 @@ class GJavaFloatArrayType<CTX>(gqlType: GType, elType: GJavaType<CTX>) : GJavaLi
         (list as FloatArray)[index] = (value as Number).toFloat()
     }
 
-    override fun transformFromJson(array: JsonArray, inputVarParser: InputVarParser<CTX>): FloatArray {
-        val n = array.size()
+    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): FloatArray {
+        val n = array.size
 
         val res = FloatArray(n)
         for (i in 0 until n) {
-            val d = array.getDouble(i) ?: throw ValidationException("Null encountered in list of non-null floats")
+            val el = array[i] ?: throw ValidationException("Null encountered in list of non-null floats")
+
+            if (el !is Number)
+                throw ValidationException("A non-number encountered in list of non-null floats")
+
+            val d = el.toDouble()
+
             if (d.isNaN())
                 throw ValidationException("NaN encountered in list of non-null floats")
 

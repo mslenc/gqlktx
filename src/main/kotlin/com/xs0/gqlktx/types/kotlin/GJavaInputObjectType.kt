@@ -3,37 +3,37 @@ package com.xs0.gqlktx.types.kotlin
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GInputObjType
-import io.vertx.core.json.JsonObject
 import kotlin.reflect.KType
 
 class GJavaInputObjectType<CTX>(type: KType, gqlType: GInputObjType, private val info: ReflectedInput) : GJavaType<CTX>(type, gqlType) {
     override fun checkUsage(isInput: Boolean) {
         if (!isInput)
-            throw IllegalStateException(type.toString() + " is used as both input and output")
+            throw IllegalStateException("$type is used as both input and output")
     }
 
     override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Any {
-        val inputJson: JsonObject = value as? JsonObject ?: throw ValidationException("Expected a JSON object, but got something else")
+        @Suppress("UNCHECKED_CAST")
+        val inputJson: Map<String, Any?> = value as? Map<String, Any?> ?: throw ValidationException("Expected a JSON object, but got something else")
 
         // stage 1: convert input json into internal types, using defaults where they exist
 
-        if (!info.propTypes.keys.containsAll(inputJson.fieldNames())) {
-            val unknown = inputJson.fieldNames() - info.propTypes.keys
+        if (!info.propTypes.keys.containsAll(inputJson.keys)) {
+            val unknown = inputJson.keys - info.propTypes.keys
             throw IllegalArgumentException("Field(s) " + unknown.joinToString() + " not recognized")
         }
 
         val values = HashMap<String, Any?>()
 
         for ((name, propInfo) in info.propTypes) {
-            val inInput = name in inputJson.fieldNames()
+            val inInput = name in inputJson.keys
             val jsonVal = if (inInput) inputJson.getValue(name) else propInfo.defaultValue
             if (jsonVal == null && propInfo.alwaysRequired)
                 throw IllegalArgumentException("Missing value for $name")
             if (jsonVal != null || inInput) {
                 if (jsonVal != null) {
-                    values.put(name, inputVarParser.getCoercedVar(jsonVal, propInfo.type.sourceType))
+                    values[name] = inputVarParser.getCoercedVar(jsonVal, propInfo.type.sourceType)
                 } else {
-                    values.put(name, null)
+                    values[name] = null
                 }
             }
         }

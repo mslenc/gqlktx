@@ -1,7 +1,5 @@
 package com.xs0.gqlktx
 
-import io.vertx.core.Future
-import io.vertx.core.Handler
 import java.util.concurrent.CompletableFuture
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -22,8 +20,7 @@ private val primitiveArrayTypes = setOf(
 )
 
 private val ignoredTypes = listOf(
-    Handler::class, Future::class, CompletableFuture::class,
-    java.util.concurrent.Future::class
+    CompletableFuture::class, java.util.concurrent.Future::class
 )
 
 class SemiType(

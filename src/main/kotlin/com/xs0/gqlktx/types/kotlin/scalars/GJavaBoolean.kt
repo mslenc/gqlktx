@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
@@ -16,7 +17,7 @@ class GJavaBoolean<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(
         return ScalarUtils.validateBoolean(value)
     }
 
-    override fun toJson(result: Any): Any {
+    override fun toJson(result: Any, coercion: ScalarCoercion): Any {
         return result
     }
 }

@@ -1,8 +1,6 @@
 package com.xs0.gqlktx.dom
 
 import com.xs0.gqlktx.parser.Token
-import io.vertx.core.json.JsonArray
-import io.vertx.core.json.JsonObject
 
 abstract class ValueOrVar {
     override fun toString(): String = StringBuilder().also { toString(it) }.toString()
@@ -57,11 +55,11 @@ class ValueNull(token: Token<String>) : ValueScalar<Unit>(token, null) {
 }
 
 class ValueObject(val elements: Map<String, ValueOrVar>) : Value() {
-    override fun toJson(): JsonObject {
-        val res = JsonObject()
+    override fun toJson(): Map<String, Any?> {
+        val res = LinkedHashMap<String, Any?>()
         for ((key, value) in elements) {
             if (value is Value) {
-                res.put(key, value.toJson())
+                res[key] = value.toJson()
             } else {
                 // this should already be prevented by the parser
                 throw Error("Variable in default value")
@@ -87,16 +85,11 @@ class ValueObject(val elements: Map<String, ValueOrVar>) : Value() {
 }
 
 class ValueList(val elements: List<ValueOrVar>) : Value() {
-    override fun toJson(): JsonArray {
-        val res = JsonArray()
+    override fun toJson(): List<Any?> {
+        val res = ArrayList<Any?>()
         for (value in elements) {
             if (value is Value) {
-                val elVal = value.toJson()
-                if (elVal == null) {
-                    res.addNull()
-                } else {
-                    res.add(elVal)
-                }
+                res.add(value.toJson())
             } else {
                 // this should already be prevented by the parser
                 throw Error("Variable in default value")
