@@ -92,7 +92,7 @@ class Schema<SCHEMA, CTX>(
 
         val typesByKind = LinkedHashMap<TypeKind, TreeMap<String, GBaseType>>()
         for (kind in TypeKind.values())
-            typesByKind.put(kind, TreeMap())
+            typesByKind[kind] = TreeMap()
 
         for ((key, value) in baseTypes)
             if (!key.startsWith("__"))

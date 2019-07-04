@@ -54,14 +54,16 @@ class PackedIdListWriter(private val out: OutputStream) {
             return
         }
 
-        if (value > 0) {
-            out.write(TB_INT_VAR)
-            writeVarint(value)
-        } else if (value < 0) {
-            out.write(TB_INT_SIGNED_VAR)
-            writeVarint(value shl 1 xor (value shr 31))
-        } else {
-            out.write(TB_INT_ZERO)
+        when {
+            value > 0 -> {
+                out.write(TB_INT_VAR)
+                writeVarint(value)
+            }
+            value < 0 -> {
+                out.write(TB_INT_SIGNED_VAR)
+                writeVarint(value shl 1 xor (value shr 31))
+            }
+            else -> out.write(TB_INT_ZERO)
         }
     }
 
@@ -72,14 +74,16 @@ class PackedIdListWriter(private val out: OutputStream) {
             return
         }
 
-        if (value > 0) {
-            out.write(TB_LONG_VAR)
-            writeVarint(value)
-        } else if (value < 0) {
-            out.write(TB_LONG_SIGNED_VAR)
-            writeVarint(value shl 1 xor (value shr 63))
-        } else {
-            out.write(TB_LONG_ZERO)
+        when {
+            value > 0 -> {
+                out.write(TB_LONG_VAR)
+                writeVarint(value)
+            }
+            value < 0 -> {
+                out.write(TB_LONG_SIGNED_VAR)
+                writeVarint(value shl 1 xor (value shr 63))
+            }
+            else -> out.write(TB_LONG_ZERO)
         }
     }
 

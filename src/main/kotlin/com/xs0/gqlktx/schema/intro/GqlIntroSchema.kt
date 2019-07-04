@@ -3,16 +3,13 @@ package com.xs0.gqlktx.schema.intro
 import com.xs0.gqlktx.GqlObject
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.builder.TypeKind
-import com.xs0.gqlktx.types.gql.GBaseType
 
 import java.util.ArrayList
-import java.util.Arrays
 
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.FIELD
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.FRAGMENT_SPREAD
 import com.xs0.gqlktx.schema.intro.GqlIntroDirectiveLocation.INLINE_FRAGMENT
 import com.xs0.gqlktx.types.kotlin.GJavaNotNullType
-import java.util.Collections.singletonList
 
 @GqlObject("__Schema")
 class GqlIntroSchema(private val schema: Schema<*, *>) {
@@ -71,14 +68,13 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
 
     val mutationType: GqlIntroType?
         get() {
-            if (schema.mutationRoot == null)
-                return null
+            return schema.mutationRoot?.let { mutationRoot ->
+                var type = schema.getJavaType(mutationRoot.type)
+                if (type is GJavaNotNullType)
+                    type = type.innerType
 
-            var type = schema.getJavaType(schema.mutationRoot.type)
-            if (type is GJavaNotNullType)
-                type = type.innerType
-
-            return type.gqlType.introspector
+                type.gqlType.introspector
+            }
         }
 
     // TODO

@@ -1,7 +1,13 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.ValueList
+import com.xs0.gqlktx.dom.ValueNull
+import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.Variable
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
@@ -29,30 +35,18 @@ class GJavaShortArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJ
         (list as ShortArray)[index] = (value as Number).toShort()
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): ShortArray {
-        val n = array.size
-
-        val res = ShortArray(n)
-        for (i in 0 until n) {
-            val o = array[i] ?: throw ValidationException("Null encountered in list of non-null ints")
-
-            if (o is Short) {
-                res[i] = o
-                continue
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): ShortArray {
+        return ShortArray(array.elements.size) { index ->
+            when (val element = array.elements[index]) {
+                is ValueNumber -> ScalarUtils.validateShort(element)
+                is ValueNull -> throw ValidationException("Null encountered in list of non-null shorts")
+                is Variable -> inputVarParser.parseVar(element, NON_NULL_SHORT_TYPE) as Short
+                else -> throw ValidationException("Something other than a number encountered in list of non-null shorts")
             }
-
-            if (o !is Number)
-                throw ValidationException("Found a non-numeric value instead of int")
-
-            if (o.toInt().toDouble() != o.toDouble())
-                throw ValidationException("Value has a fraction or is out of range")
-
-            if (o.toInt() < java.lang.Short.MIN_VALUE || o.toInt() > java.lang.Short.MAX_VALUE)
-                throw ValidationException("Value out of range")
-
-            res[i] = o.toShort()
         }
+    }
 
-        return res
+    companion object {
+        val NON_NULL_SHORT_TYPE = Short::class.nonNullType()
     }
 }

@@ -99,8 +99,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
         return Token(row, col, NAME, name, name)
     }
 
-    @Throws(ParseException::class)
-    private fun processNumber(row: Int, col: Int, signChar: Int, firstDigit: Int): Token<Number> {
+    private fun processNumber(row: Int, col: Int, signChar: Int, firstDigit: Int): Token<String> {
         var firstDigit = firstDigit
         val raw = StringBuilder()
         val value = StringBuilder()
@@ -112,7 +111,6 @@ class GraphQLTokenizer(private val chars: CharStream) {
 
         var hadDigits = false
         var hadZeroFirst = false
-        var isFloat = false
 
         while (firstDigit > 0 || !chars.end()) {
             val d = if (firstDigit > 0) firstDigit else chars.consume { c: Int -> GChar.isDigit(c) }
@@ -139,7 +137,6 @@ class GraphQLTokenizer(private val chars: CharStream) {
         if (chars.consume { c: Int -> GChar.isDot(c) } > 0) {
             raw.append('.')
             value.append('.')
-            isFloat = true
             hadDigits = false
             while (!chars.end()) {
                 val d = chars.consume { c: Int -> GChar.isDigit(c) }
@@ -160,7 +157,6 @@ class GraphQLTokenizer(private val chars: CharStream) {
         if (e > 0) {
             raw.appendCodePoint(e)
             value.appendCodePoint(e)
-            isFloat = true
             hadDigits = false
 
             val pm = chars.consume { c: Int -> GChar.isPlusOrMinus(c) }
@@ -185,30 +181,9 @@ class GraphQLTokenizer(private val chars: CharStream) {
         if (!hadDigits)
             throw ParseException("Expected a number after " + e.toChar(), row, col)
 
-        try {
-            if (isFloat) {
-                val d = java.lang.Double.valueOf(value.toString())
-                if (d.isInfinite())
-                    throw ParseException("Infinity not allowed", row, col)
-                if (d.isNaN())
-                    throw ParseException("NaN not allowed", row, col)
-
-                return Token(row, col, FLOAT, raw.toString(), d)
-            } else {
-                val l = java.lang.Long.parseLong(value.toString())
-                return if (l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE) {
-                    Token(row, col, INTEGER, raw.toString(), l.toInt())
-                } else {
-                    Token(row, col, LONG, raw.toString(), l)
-                }
-            }
-        } catch (ex: NumberFormatException) {
-            throw ParseException("Failed to parse number \"" + raw + "\": " + ex.message, row, col)
-        }
-
+        return Token(row, col, NUMBER, raw.toString(), value.toString())
     }
 
-    @Throws(ParseException::class)
     private fun processSpread(row: Int, col: Int): Token<Unit> {
         val a = chars.consume { c: Int -> GChar.isDot(c) }
         val b = chars.consume { c: Int -> GChar.isDot(c) }
@@ -219,7 +194,6 @@ class GraphQLTokenizer(private val chars: CharStream) {
         return Token<Unit>(row, col, SPREAD, "...", Unit)
     }
 
-    @Throws(ParseException::class)
     private fun processString(row: Int, col: Int): Token<String> {
         val raw = StringBuilder().append('"')
         val value = StringBuilder()

@@ -1,7 +1,10 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.nonNullType
+import com.xs0.gqlktx.schema.builder.nullableType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
@@ -29,18 +32,19 @@ class GJavaBooleanArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : 
         (list as BooleanArray)[index] = value as Boolean
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): BooleanArray {
-        val n = array.size
-
-        val res = BooleanArray(n)
-        for (i in 0 until n) {
-            when (val el = array[i]) {
-                null -> throw ValidationException("Null encountered in list of non-null booleans")
-                is Boolean -> res[i] = el
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): BooleanArray {
+        return BooleanArray(array.elements.size) { index ->
+            when (val element = array.elements[index]) {
+                is ValueBool -> element.value
+                is ValueNull -> throw ValidationException("Null encountered in list of non-null booleans")
+                is Variable -> inputVarParser.parseVar(element, NON_NULL_BOOL_TYPE) as Boolean
                 else -> throw ValidationException("A non-boolean encountered in list of non-null booleans")
             }
         }
+    }
 
-        return res
+    companion object {
+        val NON_NULL_BOOL_TYPE = Boolean::class.nonNullType()
+        val NULLABLE_BOOL_TYPE = Boolean::class.nullableType()
     }
 }

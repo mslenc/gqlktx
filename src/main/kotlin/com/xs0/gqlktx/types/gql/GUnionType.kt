@@ -1,6 +1,7 @@
 package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.QueryException
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroType
 
@@ -24,7 +25,7 @@ class GUnionType(name: String) : GBaseType(name) {
             return false
         }
 
-    override fun coerceValue(raw: Any): Any {
+    override fun coerceValue(raw: Value): Value {
         throw QueryException("Union type $name can't be used as a variable")
     }
 

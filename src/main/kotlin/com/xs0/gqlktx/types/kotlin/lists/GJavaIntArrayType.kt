@@ -1,7 +1,13 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.ValueList
+import com.xs0.gqlktx.dom.ValueNull
+import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.Variable
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
@@ -29,27 +35,18 @@ class GJavaIntArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJav
         (list as IntArray)[index] = (value as Number).toInt()
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): IntArray {
-        val n = array.size
-
-        val res = IntArray(n)
-        for (i in 0 until n) {
-            val o = array[i] ?: throw ValidationException("Null encountered in list of non-null ints")
-
-            if (o is Int) {
-                res[i] = o
-                continue
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): IntArray {
+        return IntArray(array.elements.size) { index ->
+            when (val element = array.elements[index]) {
+                is ValueNumber -> ScalarUtils.validateInteger(element)
+                is ValueNull -> throw ValidationException("Null encountered in list of non-null ints")
+                is Variable -> inputVarParser.parseVar(element, NON_NULL_INT_TYPE) as Int
+                else -> throw ValidationException("Something other than a number encountered in list of non-null ints")
             }
-
-            if (o !is Number)
-                throw ValidationException("Found a non-numeric value instead of int")
-
-            if (o.toInt().toDouble() != o.toDouble())
-                throw ValidationException("Value has a fraction or is out of range")
-
-            res[i] = o.toInt()
         }
+    }
 
-        return res
+    companion object {
+        val NON_NULL_INT_TYPE = Int::class.nonNullType()
     }
 }

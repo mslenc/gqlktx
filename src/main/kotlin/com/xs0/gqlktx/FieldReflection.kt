@@ -78,7 +78,7 @@ fun extractFieldName(member: KCallable<*>, isBool: Boolean): String? {
     val ann = member.findAnnotation<GqlField>()
     val forced = ann != null
 
-    if (ann != null && !ann.name.isEmpty()) {
+    if (ann != null && ann.name.isNotEmpty()) {
         if (validGraphQLName(ann.name, false))
             return ann.name
         throw IllegalArgumentException("${ann.name} is not a valid GraphQL field name")
@@ -177,9 +177,9 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
         params += parsedParam
 
         val parsedDefault: Value? =
-            param.findAnnotation<GqlParam>()?.let {
-                it.defaultsTo.trimToNull()?.let {
-                    GraphQLParser.parseValue(it)
+            param.findAnnotation<GqlParam>()?.let { ann ->
+                ann.defaultsTo.trimToNull()?.let { defaultValue ->
+                    GraphQLParser.parseValue(defaultValue)
                 }
             }
 

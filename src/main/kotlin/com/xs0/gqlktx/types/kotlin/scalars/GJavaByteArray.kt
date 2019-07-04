@@ -1,7 +1,9 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
 import com.xs0.gqlktx.ScalarCoercion
+import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
@@ -15,12 +17,11 @@ class GJavaByteArray<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX
             throw IllegalArgumentException("Expected ByteArray type")
     }
 
-    override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): ByteArray {
-        if (value !is String)
-            throw ValidationException("Bytes values in JSON must be encoded as base64 strings")
+    override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): ByteArray {
+        val string = ScalarUtils.validateString(value)
 
         try {
-            return Base64.getUrlDecoder().decode(value)
+            return Base64.getUrlDecoder().decode(string)
         } catch (e: IllegalArgumentException) {
             throw ValidationException("Couldn't base64-decode value: " + e.message)
         }

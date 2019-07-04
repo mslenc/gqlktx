@@ -66,7 +66,7 @@ annotation class GqlParam(
 annotation class GqlObject(
     val name: String = "",
     val description: String = "",
-    val implements: Array<KClass<*>> = arrayOf()
+    val implements: Array<KClass<*>> = []
 )
 
 @Retention(RUNTIME)
@@ -74,7 +74,7 @@ annotation class GqlObject(
 annotation class GqlInterface(
     val name: String = "",
     val description: String = "",
-    val implementedBy: Array<KClass<*>> = arrayOf()
+    val implementedBy: Array<KClass<*>> = []
 )
 
 @Retention(RUNTIME)
@@ -82,7 +82,7 @@ annotation class GqlInterface(
 annotation class GqlUnion(
     val name: String = "",
     val description: String = "",
-    val implementedBy: Array<KClass<*>> = arrayOf()
+    val implementedBy: Array<KClass<*>> = []
 )
 
 

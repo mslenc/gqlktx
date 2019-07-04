@@ -1,7 +1,13 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.ValueList
+import com.xs0.gqlktx.dom.ValueNull
+import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.Variable
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
@@ -29,27 +35,18 @@ class GJavaFloatArrayType<CTX>(gqlType: GType, elType: GJavaType<CTX>) : GJavaLi
         (list as FloatArray)[index] = (value as Number).toFloat()
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): FloatArray {
-        val n = array.size
-
-        val res = FloatArray(n)
-        for (i in 0 until n) {
-            val el = array[i] ?: throw ValidationException("Null encountered in list of non-null floats")
-
-            if (el !is Number)
-                throw ValidationException("A non-number encountered in list of non-null floats")
-
-            val d = el.toDouble()
-
-            if (d.isNaN())
-                throw ValidationException("NaN encountered in list of non-null floats")
-
-            if (d < -java.lang.Float.MAX_VALUE || d > java.lang.Float.MAX_VALUE)
-                throw ValidationException("Value out of range")
-
-            res[i] = d.toFloat()
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): FloatArray {
+        return FloatArray(array.elements.size) { index ->
+            when (val element = array.elements[index]) {
+                is ValueNumber -> ScalarUtils.validateSingleFloat(element)
+                is ValueNull -> throw ValidationException("Null encountered in list of non-null floats")
+                is Variable -> inputVarParser.parseVar(element, NON_NULL_FLOAT_TYPE) as Float
+                else -> throw ValidationException("Something other than a number encountered in list of non-null floats")
+            }
         }
+    }
 
-        return res
+    companion object {
+        val NON_NULL_FLOAT_TYPE = Float::class.nonNullType()
     }
 }

@@ -22,19 +22,20 @@ class GraphQLParserTest {
     fun testParseValueConst() {
         // we won't obsess too much with different values here, as they're already tested in the tokenizer..
 
-        checkScalarValue(123, parseConst("123"), ValueInt::class)
-        checkScalarValue(-50, parseConst("-50"), ValueInt::class)
+        checkScalarValue("123", parseConst("123"), ValueNumber::class)
+        checkScalarValue("234", parseConst("+234"), ValueNumber::class)
+        checkScalarValue("-50", parseConst("-50"), ValueNumber::class)
 
-        checkScalarValue(123.0, parseConst("123.0"), ValueFloat::class)
-        checkScalarValue(158.553E-3, parseConst("158.553E-3"), ValueFloat::class)
-        checkScalarValue(-55E6, parseConst("-55E6"), ValueFloat::class)
+        checkScalarValue("123.0", parseConst("123.0"), ValueNumber::class)
+        checkScalarValue("158.553E-3", parseConst("158.553E-3"), ValueNumber::class)
+        checkScalarValue("-55E6", parseConst("-55E6"), ValueNumber::class)
 
         checkScalarValue("a b c???", parseConst("\"a b c???\""), ValueString::class)
 
         checkScalarValue(true, parseConst("true"), ValueBool::class)
         checkScalarValue(false, parseConst("false"), ValueBool::class)
 
-        checkScalarValue(null, parseConst("null"), ValueNull::class)
+        assertTrue(parseConst("null") is ValueNull)
 
         checkScalarValue("BUBU", parseConst("BUBU"), ValueEnum::class)
 
@@ -43,7 +44,7 @@ class GraphQLParserTest {
 
         val outerList = (complex as ValueList).elements
         assertEquals(3, outerList.size.toLong())
-        checkScalarValue(666, outerList[0], ValueInt::class)
+        checkScalarValue("666", outerList[0], ValueNumber::class)
         assertTrue(outerList[1] is ValueObject)
         checkScalarValue(true, outerList[2], ValueBool::class)
 
@@ -56,9 +57,9 @@ class GraphQLParserTest {
 
         val innerList = (objVals["baz"] as ValueList).elements
         assertEquals(3, innerList.size.toLong())
-        checkScalarValue(5, innerList[0], ValueInt::class)
-        checkScalarValue(4, innerList[1], ValueInt::class)
-        checkScalarValue(3, innerList[2], ValueInt::class)
+        checkScalarValue("5", innerList[0], ValueNumber::class)
+        checkScalarValue("4", innerList[1], ValueNumber::class)
+        checkScalarValue("3", innerList[2], ValueNumber::class)
 
         val fails = arrayOf("\$name", "[ 1, 2, \$foo, 4 ]", "{ a:b, c:\$d }")
         for (s in fails) {
@@ -75,19 +76,17 @@ class GraphQLParserTest {
     @Test
     @Throws(ParseException::class)
     fun testParseValueWithVariables() {
-        checkScalarValue(123, parseValue("123"), ValueInt::class)
-        checkScalarValue(-50, parseValue("-50"), ValueInt::class)
+        checkScalarValue("123", parseValue("123"), ValueNumber::class)
+        checkScalarValue("-50", parseValue("-50"), ValueNumber::class)
 
-        checkScalarValue(123.0, parseValue("123.0"), ValueFloat::class)
-        checkScalarValue(158.553E-3, parseValue("158.553E-3"), ValueFloat::class)
-        checkScalarValue(-55E6, parseValue("-55E6"), ValueFloat::class)
+        checkScalarValue("123.0", parseValue("123.0"), ValueNumber::class)
+        checkScalarValue("158.553E-3", parseValue("158.553E-3"), ValueNumber::class)
+        checkScalarValue("-55E6", parseValue("-55E6"), ValueNumber::class)
 
         checkScalarValue("a b c???", parseValue("\"a b c???\""), ValueString::class)
 
         checkScalarValue(true, parseValue("true"), ValueBool::class)
         checkScalarValue(false, parseValue("false"), ValueBool::class)
-
-        checkScalarValue(null, parseValue("null"), ValueNull::class)
 
         checkScalarValue("BUBU", parseValue("BUBU"), ValueEnum::class)
 
@@ -96,7 +95,7 @@ class GraphQLParserTest {
 
         val outerList = (complex as ValueList).elements
         assertEquals(3, outerList.size.toLong())
-        checkScalarValue(666, outerList[0], ValueInt::class)
+        checkScalarValue("666", outerList[0], ValueNumber::class)
         assertTrue(outerList[1] is ValueObject)
         checkScalarValue(true, outerList[2], ValueBool::class)
 
@@ -109,9 +108,9 @@ class GraphQLParserTest {
 
         val innerList = (objVals["baz"] as ValueList).elements
         assertEquals(3, innerList.size.toLong())
-        checkScalarValue(5, innerList[0], ValueInt::class)
+        checkScalarValue("5", innerList[0], ValueNumber::class)
         assertEquals("boo", (innerList[1] as Variable).name)
-        checkScalarValue(3, innerList[2], ValueInt::class)
+        checkScalarValue("3", innerList[2], ValueNumber::class)
 
         val constFails = arrayOf("\$name", "[ 1, 2, \$foo, 4 ]", "{ a:b, c:\$d }")
         for (s in constFails) {
@@ -135,10 +134,10 @@ class GraphQLParserTest {
         }
 
         @Throws(ParseException::class)
-        internal fun parseConst(string: String): Value {
+        internal fun parseConst(string: String): ValueOrNull {
             val res = parser(string).parseValue(false)
-            assertTrue(res is Value)
-            return res as Value
+            assertTrue(res is ValueOrNull)
+            return res as ValueOrNull
         }
 
         @SafeVarargs

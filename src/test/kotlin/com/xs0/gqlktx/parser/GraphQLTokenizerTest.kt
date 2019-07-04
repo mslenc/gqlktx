@@ -34,13 +34,13 @@ class GraphQLTokenizerTest {
     }
 
     @Throws(ParseException::class)
-    internal fun testSingleInt(`val`: Int) {
-        if (`val` >= 0) {
-            testSingle("" + `val`, INTEGER, `val`)
-            testSingle("+" + `val`, INTEGER, `val`)
-            testSingle("-" + `val`, INTEGER, -`val`)
+    internal fun testSingleInt(value: Int) {
+        if (value >= 0) {
+            testSingle("$value", NUMBER, "$value")
+            testSingle("+$value", NUMBER, "$value")
+            testSingle("-$value", NUMBER, "-$value")
         } else {
-            testSingle("" + `val`, INTEGER, `val`)
+            testSingle("$value", NUMBER, "$value")
         }
     }
 
@@ -62,8 +62,7 @@ class GraphQLTokenizerTest {
 
                 for (exp in if (e.isEmpty()) arrayOf("") else arrayOf("0", "6", "85")) {
                     val txt = (Math.random() * 1000000).toInt().toString() + decimals + e + exp
-                    val `val` = java.lang.Double.parseDouble(txt)
-                    testSingle(txt, FLOAT, `val`)
+                    testSingle(txt, NUMBER, txt)
                 }
             }
         }

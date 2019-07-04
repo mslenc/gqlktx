@@ -2,72 +2,52 @@ package com.xs0.gqlktx.dom
 
 import com.xs0.gqlktx.parser.Token
 
-abstract class ValueOrVar {
+sealed class ValueOrVar {
     override fun toString(): String = StringBuilder().also { toString(it) }.toString()
     abstract fun toString(sb: StringBuilder)
 }
 
-class Variable(name: Token<String>) : ValueOrVar() {
-    val name: String = name.value
+class Variable(val token: Token<String>) : ValueOrVar() {
+    val name = token.value
 
     override fun toString(sb: StringBuilder) {
         sb.append('$').append(name)
     }
 }
 
-abstract class Value : ValueOrVar() {
-    abstract fun toJson(): Any?
-}
+sealed class ValueOrNull : ValueOrVar()
 
-abstract class ValueScalar<out T: Any>
-protected constructor(protected val token: Token<*>, val value: T?) : Value() {
-
-    override fun toJson(): Any? {
-        return value
-    }
-
-    override fun toString(sb: StringBuilder) {
-        sb.append(value)
-    }
-}
-
-class ValueBool(token: Token<String>, value: Boolean) : ValueScalar<Boolean>(token, value)
-class ValueInt(token: Token<Int>) : ValueScalar<Int>(token, token.value)
-class ValueLong(token: Token<Long>) : ValueScalar<Long>(token, token.value)
-class ValueFloat(token: Token<Double>) : ValueScalar<Double>(token, token.value)
-
-class ValueString(token: Token<String>) : ValueScalar<String>(token, token.value) {
-    override fun toString(sb: StringBuilder) {
-        sb.append('"').append(value!!.replace("\"", "\\\"")).append('"')
-    }
-}
-
-class ValueEnum(token: Token<String>) : ValueScalar<String>(token, token.value) {
-    override fun toString(sb: StringBuilder) {
-        sb.append(value)
-    }
-}
-
-class ValueNull(token: Token<String>) : ValueScalar<Unit>(token, null) {
+class ValueNull(val token: Token<String>? = null) : ValueOrNull() {
     override fun toString(sb: StringBuilder) {
         sb.append("null")
     }
 }
 
-class ValueObject(val elements: Map<String, ValueOrVar>) : Value() {
-    override fun toJson(): Map<String, Any?> {
-        val res = LinkedHashMap<String, Any?>()
-        for ((key, value) in elements) {
-            if (value is Value) {
-                res[key] = value.toJson()
-            } else {
-                // this should already be prevented by the parser
-                throw Error("Variable in default value")
-            }
-        }
-        return res
-    }
+sealed class Value : ValueOrNull()
 
+sealed class ValueScalar<out T: Any>(val value: T, internal val token: Token<*>? = null) : Value() {
+    override fun toString(sb: StringBuilder) {
+        sb.append(value)
+    }
+}
+
+class ValueBool(value: Boolean, token: Token<String>? = null) : ValueScalar<Boolean>(value, token)
+class ValueNumber(strRep: String, token: Token<String>? = null) : ValueScalar<String>(strRep, token)
+
+class ValueString(value: String, token: Token<String>? = null) : ValueScalar<String>(value, token) {
+    override fun toString(sb: StringBuilder) {
+        sb.append('"').append(value.replace("\"", "\\\"")).append('"')
+    }
+}
+
+class ValueEnum(value: String, token: Token<String>? = null) : ValueScalar<String>(value, token) {
+    override fun toString(sb: StringBuilder) {
+        sb.append(value)
+    }
+}
+
+
+class ValueObject(val elements: Map<String, ValueOrVar>) : Value() {
     override fun toString(sb: StringBuilder) {
         sb.append("{ ")
         var first = true
@@ -85,19 +65,6 @@ class ValueObject(val elements: Map<String, ValueOrVar>) : Value() {
 }
 
 class ValueList(val elements: List<ValueOrVar>) : Value() {
-    override fun toJson(): List<Any?> {
-        val res = ArrayList<Any?>()
-        for (value in elements) {
-            if (value is Value) {
-                res.add(value.toJson())
-            } else {
-                // this should already be prevented by the parser
-                throw Error("Variable in default value")
-            }
-        }
-        return res
-    }
-
     override fun toString(sb: StringBuilder) {
         sb.append("[ ")
         var first = true

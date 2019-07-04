@@ -1,5 +1,6 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.utils.Maybe
 import java.util.concurrent.CompletableFuture
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
@@ -11,7 +12,8 @@ enum class SemiTypeKind {
     COLLECTION_OF,
     ARRAY_OF,
     PRIMITIVE_ARRAY,
-    OBJECT
+    OBJECT,
+    MAYBE
 }
 
 private val primitiveArrayTypes = setOf(
@@ -35,41 +37,48 @@ class SemiType(
         fun create(type: KType): SemiType? {
             val nullable = type.isMarkedNullable
 
-            if (type.arguments.size == 1) {
-                val container = type.classifier as? KClass<*> ?: return null
+            when {
+                type.arguments.size == 1 -> {
+                    val container = type.classifier as? KClass<*> ?: return null
 
-                if (container.java.isArray) {
-                    // Array<X>
-                    val innerType = create(type.arguments[0].type ?: return null) ?: return null
-                    return SemiType(nullable, SemiTypeKind.ARRAY_OF, innerType, container, type)
-                } else
-                    if (container.isSubclassOf(Collection::class)) {
-                        val innerType = create(type.arguments[0].type ?: return null) ?: return null
-                        return SemiType(nullable, SemiTypeKind.COLLECTION_OF, innerType, container, type)
-                    } else {
-                        return null
+                    when {
+                        container.java.isArray -> {
+                            // Array<X>
+                            val innerType = create(type.arguments[0].type ?: return null) ?: return null
+                            return SemiType(nullable, SemiTypeKind.ARRAY_OF, innerType, container, type)
+                        }
+                        container.isSubclassOf(Collection::class) -> {
+                            val innerType = create(type.arguments[0].type ?: return null) ?: return null
+                            return SemiType(nullable, SemiTypeKind.COLLECTION_OF, innerType, container, type)
+                        }
+                        container.isSubclassOf(Maybe::class) -> {
+                            val innerType = create(type.arguments[0].type ?: return null) ?: return null
+                            return SemiType(nullable, SemiTypeKind.MAYBE, innerType, container, type)
+                        }
+                        else -> return null
                     }
-            } else
-            if (type.arguments.isEmpty()) {
-                val klass = type.classifier as? KClass<*> ?: return null
-
-                return when {
-                    klass in primitiveArrayTypes ->
-                        SemiType(nullable, SemiTypeKind.PRIMITIVE_ARRAY, null, klass, type)
-
-                    klass != Any::class -> {
-                        for (ignored in ignoredTypes)
-                            if (ignored.isSuperclassOf(klass))
-                                return null
-
-                        SemiType(nullable, SemiTypeKind.OBJECT, null, klass, type)
-                    }
-
-                    else ->
-                        null
                 }
-            } else {
-                return null
+
+                type.arguments.isEmpty() -> {
+                    val klass = type.classifier as? KClass<*> ?: return null
+
+                    return when {
+                        klass in primitiveArrayTypes ->
+                            SemiType(nullable, SemiTypeKind.PRIMITIVE_ARRAY, null, klass, type)
+
+                        klass != Any::class -> {
+                            for (ignored in ignoredTypes)
+                                if (ignored.isSuperclassOf(klass))
+                                    return null
+
+                            SemiType(nullable, SemiTypeKind.OBJECT, null, klass, type)
+                        }
+
+                        else ->
+                            null
+                    }
+                }
+                else -> return null
             }
         }
     }
@@ -115,14 +124,15 @@ class SemiType(
     }
 
     fun getBaseClass(): KClass<*> {
-        when (kind) {
+        return when (kind) {
             SemiTypeKind.COLLECTION_OF,
-            SemiTypeKind.ARRAY_OF -> {
-                return inner!!.getBaseClass()
+            SemiTypeKind.ARRAY_OF,
+            SemiTypeKind.MAYBE -> {
+                inner!!.getBaseClass()
             }
             SemiTypeKind.PRIMITIVE_ARRAY,
             SemiTypeKind.OBJECT -> {
-                return klass!!
+                klass!!
             }
         }
     }

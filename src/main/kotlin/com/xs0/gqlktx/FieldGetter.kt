@@ -14,13 +14,7 @@ class PublicParamInfo(
     val name: String,
     val type: SemiType,
     val defaultValue: Value?
-) {
-    val defaultValueJson = defaultValue?.toJson()
-    init {
-        if (defaultValue != null && defaultValueJson == null)
-            throw IllegalStateException("Can't use null as a default value")
-    }
-}
+)
 
 interface FieldGetter<in CTX> {
     val publicType: SemiType
@@ -92,9 +86,6 @@ class FieldGetterCoroutine<in CTX>(
                     ParamKind.CONTEXT -> param.ctxGetter!!.invoke(context)
                     ParamKind.NULL -> null
                     ParamKind.CONTINUATION -> cont
-
-                    else ->
-                        throw Error("but we checked for this in constructor :(")
                 }
             }
 

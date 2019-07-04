@@ -55,7 +55,7 @@ class CharStream(private val s: String) {
     }
 
     companion object {
-        private val CR = 13
-        private val LF = 10
+        private const val CR = 13
+        private const val LF = 10
     }
 }

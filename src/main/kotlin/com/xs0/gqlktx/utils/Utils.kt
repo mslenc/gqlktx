@@ -1,19 +1,10 @@
 package com.xs0.gqlktx.utils
 
 import java.util.*
-
-
-private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
-private val fromBase64: IntArray = run {
-    val fromBase64 = IntArray('z'.toInt() + 1, { -1 })
-    for (i in 0..63)
-        fromBase64[toBase64[i].toInt()] = i
-    fromBase64['='.toInt()] = -2
-    return@run fromBase64
-}
+import kotlin.math.min
 
 fun base64EncodeULong(value: Long): String {
-    val skipBytes = Math.min(63, java.lang.Long.numberOfLeadingZeros(value)).ushr(3)
+    val skipBytes = min(63, java.lang.Long.numberOfLeadingZeros(value)).ushr(3)
     val buff = ByteArray(8 - skipBytes)
 
     for (i in skipBytes..7) {

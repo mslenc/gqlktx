@@ -1,6 +1,9 @@
 package com.xs0.gqlktx.types.gql
 
 import com.xs0.gqlktx.QueryException
+import com.xs0.gqlktx.dom.Value
+import com.xs0.gqlktx.dom.ValueEnum
+import com.xs0.gqlktx.dom.ValueString
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroEnumValue
 
@@ -11,12 +14,18 @@ class GEnumType(name: String, val values: Set<String>) : GValueType(name) {
     override val kind: TypeKind
         get() = TypeKind.ENUM
 
-    override fun coerceValue(raw: Any): Any {
-        if (raw is CharSequence) {
-            return check(raw.toString())
-        } else {
-            throw QueryException("Expected an enum value (String)")
+    override fun coerceValue(raw: Value): ValueEnum {
+        if (raw is ValueEnum) {
+            check(raw.value)
+            return raw
         }
+
+        if (raw is ValueString) {
+            check(raw.value)
+            return ValueEnum(raw.value)
+        }
+
+        throw QueryException("Expected an enum value (String)")
     }
 
     private fun check(string: String): String {

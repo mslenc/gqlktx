@@ -16,6 +16,7 @@ import java.util.*
 import com.xs0.gqlktx.appendLists
 import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
+import com.xs0.gqlktx.types.kotlin.lists.GJavaBooleanArrayType
 import kotlinx.coroutines.*
 import mu.KLogging
 import org.slf4j.LoggerFactory
@@ -56,7 +57,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
     private val rawQuery: String = queryInput.query
     private val opName: String? = queryInput.opName
-    private val rawVariables: Map<String, Any?> = queryInput.variables ?: emptyMap()
+    private val rawVariables: Map<String, ValueOrNull> = queryInput.variables ?: emptyMap()
     private val mutationsAllowed = queryInput.allowMutations
 
     private val fragmentsByName = HashMap<String, FragmentDefinition>()
@@ -80,16 +81,14 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     }
 
     private fun handleException(e: Throwable) {
-        if (e is QueryException) {
-            addError(e.message ?: return, null, null)
-        } else if (e is FieldException) {
-            addError(e.message ?: "Unknown error", e.path, null)
-        } else if (e is Error) {
-            addError("An error occurred: " + e, null, null)
-        } else if (e is CancellationException) {
-            // ignore
-        } else {
-            addError("An unexpected exception occurred: " + e, null, null)
+        when (e) {
+            is QueryException -> addError(e.message ?: return, null, null)
+            is FieldException -> addError(e.message ?: "Unknown error", e.path, null)
+            is Error -> addError("An error occurred: $e", null, null)
+            is CancellationException -> {
+                // ignore
+            }
+            else -> addError("An unexpected exception occurred: $e", null, null)
         }
     }
 
@@ -98,9 +97,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         makeIndex()
         val op = operation
 
-        val coercedVariableValues = coerceVariableValues(op)
-
-        inputVarParser = InputVarParser(context, coercedVariableValues, schema)
+        inputVarParser = InputVarParser(coerceVariableValues(op), schema)
 
         if (op.type === QUERY) {
             val queryRoot = schema.queryRoot
@@ -110,7 +107,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 initialType = initialType.innerType
             initialType as GJavaObjectType<CTX>
 
-            return doExecuteQuery(op, coercedVariableValues, initialObject, initialType)
+            return doExecuteQuery(op, initialObject, initialType)
         }
 
         if (op.type === MUTATION) {
@@ -124,22 +121,22 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 initialType = initialType.innerType
             initialType as GJavaObjectType<CTX>
 
-            return doExecuteMutation(op, coercedVariableValues, initialObject, initialType)
+            return doExecuteMutation(op, initialObject, initialType)
         }
 
         throw QueryException("No subscriptions supported (yet)")
     }
 
-    private suspend fun doExecuteQuery(op: OperationDefinition, variableValues: Map<String, Any?>, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
-        return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root())
+    private suspend fun doExecuteQuery(op: OperationDefinition, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
+        return executeSelectionSet(op.selectionSet, queryType, initialValue, FieldPath.root())
     }
 
-    private suspend fun doExecuteMutation(op: OperationDefinition, variableValues: Map<String, Any?>, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
-        return executeSelectionSet(op.selectionSet, queryType, initialValue, variableValues, FieldPath.root(), concurrent=false)
+    private suspend fun doExecuteMutation(op: OperationDefinition, initialValue: Any, queryType: GJavaObjectType<CTX>): Map<String, Any?>? {
+        return executeSelectionSet(op.selectionSet, queryType, initialValue, FieldPath.root(), concurrent=false)
     }
 
-    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, variableValues: Map<String, Any?>, parentPath: FieldPath, concurrent: Boolean = true): Map<String, Any?>? = supervisorScope {
-        val groupedFieldSet = collectFields(objectType, selectionSet, variableValues, null)
+    private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, parentPath: FieldPath, concurrent: Boolean = true): Map<String, Any?>? = supervisorScope {
+        val groupedFieldSet = collectFields(objectType, selectionSet, null)
 
         val jsonResult = LinkedHashMap<String, Any?>()
 
@@ -196,7 +193,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 futures!!.add(async(start = CoroutineStart.UNDISPATCHED) {
                     var res: Any?
                     try {
-                        res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
+                        res = executeField(theValue, fields, fieldType, fieldMethod, innerPath)
                     } catch (e: Exception) {
                         logger.error("executeField failed", e)
                         res = null
@@ -211,7 +208,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             } else {
                 var res: Any?
                 try {
-                    res = executeField(theValue, fields, fieldType, fieldMethod, variableValues, innerPath)
+                    res = executeField(theValue, fields, fieldType, fieldMethod, innerPath)
                 } catch (e: Exception) {
                     logger.error("executeField failed", e)
                     res = null
@@ -249,12 +246,12 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return null
     }
 
-    private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, variableValues: Map<String, Any?>, fieldPath: FieldPath): Any? {
+    private suspend fun executeField(objectValue: Any, fields: List<SelectionField>, fieldType: GJavaType<CTX>, fieldMethod: FieldGetter<CTX>, fieldPath: FieldPath): Any? {
         try {
             val field = fields[0]
-            val argumentValues = coerceArgumentValues(field, variableValues, fieldMethod, fieldPath)
+            val argumentValues = coerceArgumentValues(field, fieldMethod, fieldPath)
             val resolvedValue = fieldMethod.invoke(objectValue, context, argumentValues)
-            return completeValue(fieldType, fieldType.gqlType, fields, resolvedValue, variableValues, fieldPath)
+            return completeValue(fieldType, fieldType.gqlType, fields, resolvedValue, fieldPath)
         } catch (e: Throwable) {
             var err = extractMessage(e)
             if (err == null)
@@ -264,7 +261,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, variableValues: Map<String, Any?>, fieldPath: FieldPath): Any? = supervisorScope {
+    private suspend fun completeValue(fieldType: GJavaType<CTX>, gqlType: GType, fields: List<SelectionField>, result: Any?, fieldPath: FieldPath): Any? = supervisorScope {
         var fieldType = fieldType
         var gqlType = gqlType
         val kind = gqlType.kind
@@ -275,7 +272,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             gqlType = (gqlType as GNotNullType).wrappedType
 
-            val subRes = completeValue(fieldType, gqlType, fields, result, variableValues, fieldPath)
+            val subRes = completeValue(fieldType, gqlType, fields, result, fieldPath)
             if (subRes != null)
                 return@supervisorScope subRes
 
@@ -302,7 +299,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 val elPath = fieldPath.listElement(idx)
 
                 futures.add(async(start = CoroutineStart.UNDISPATCHED) {
-                    completeValue(innerType, innerType.gqlType, fields, el, variableValues, elPath)
+                    completeValue(innerType, innerType.gqlType, fields, el, elPath)
                 })
             }
 
@@ -322,7 +319,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             val subSelectionSet = mergeSelectionSets(fields)
 
-            return@supervisorScope executeSelectionSet(subSelectionSet, objectType, result, variableValues, fieldPath)
+            return@supervisorScope executeSelectionSet(subSelectionSet, objectType, result, fieldPath)
         }
     }
 
@@ -346,7 +343,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         throw IllegalStateException("result of $resultClass did not resolve to any known implementation")
     }
 
-    private fun coerceArgumentValues(field: SelectionField, variableValues: Map<String, Any?>, fieldMethod: FieldGetter<CTX>, fieldPath: FieldPath): Map<String, Any?> {
+    private fun coerceArgumentValues(field: SelectionField, fieldMethod: FieldGetter<CTX>, fieldPath: FieldPath): Map<String, Any?> {
         val coercedValues = LinkedHashMap<String, Any?>()
         val argumentValues = field.arguments
 
@@ -356,45 +353,29 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
             val valueOrVar = argumentValues[argumentName]
 
             if (hasExplicitValue && valueOrVar is Variable) {
-                val `var` = valueOrVar as Variable?
-                val varName = `var`!!.name
-                if (variableValues.containsKey(varName)) {
-                    val varValue = variableValues.getValue(varName)
-                    val javaType = schema.getJavaType(paramInfo.type.sourceType)
-                    val value: Any?
-
-                    if (varValue == null) {
-                        if (javaType.isNullAllowed()) {
-                            value = null
-                        } else {
-                            throw FieldException("Forbidden null value", fieldPath)
-                        }
-                    } else {
-                        try {
-                            value = javaType.getFromJson(varValue, inputVarParser)
-                        } catch (e: Exception) {
-                            throw FieldException("Failed to parse field: " + e.message, fieldPath, e)
-                        }
-
-                    }
-                    coercedValues.put(argumentName, value)
-                    continue
+                val imported = try {
+                    inputVarParser.parseVar(valueOrVar, paramInfo.type.sourceType)
+                } catch (e: Exception) {
+                    throw FieldException("Failed to parse field: " + e.message, fieldPath, e)
                 }
+
+                coercedValues[argumentName] = imported
+                continue
             }
 
             if (!hasExplicitValue || valueOrVar is Variable) {
-                if (paramInfo.defaultValueJson != null) {
+                if (paramInfo.defaultValue != null) {
                     val value: Any
                     try {
-                        value = argumentType.getFromJson(paramInfo.defaultValueJson, inputVarParser)
+                        value = argumentType.getFromJson(paramInfo.defaultValue, inputVarParser)
                     } catch (e: Exception) {
                         throw FieldException("Couldn't use default value for argument " + argumentName + ": " + e.message, fieldPath, e)
                     }
 
-                    coercedValues.put(argumentName, value)
+                    coercedValues[argumentName] = value
                     continue
                 } else if (argumentType is GJavaNotNullType<*>) {
-                    throw FieldException("Missing value for not null argument " + argumentName, fieldPath)
+                    throw FieldException("Missing value for not null argument $argumentName", fieldPath)
                 }
             }
 
@@ -402,48 +383,37 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                 if (argumentType is GJavaNotNullType<*>) {
                     throw FieldException("Argument $argumentName is not null, but null was provided as the value", fieldPath)
                 } else {
-                    coercedValues.put(argumentName, null)
+                    coercedValues[argumentName] = null
                     continue
                 }
             }
 
-            // TODO: improve this conversion from (parsed) Value to (JavaType'd) value
-            val jsonValue = (valueOrVar as Value).toJson()
-            val valueType = schema.getJavaType(paramInfo.type.sourceType)
+            valueOrVar as Value
 
-            val value: Any?
-            if (jsonValue == null) {
-                value = null
-            } else {
-                try {
-                    value = valueType.getFromJson(jsonValue, inputVarParser)
-                } catch (e: Exception) {
-                    throw FieldException("Failed to parse value: " + e.message, fieldPath, e)
-                }
+            val parsed = try {
+                inputVarParser.parseVar(valueOrVar, paramInfo.type.sourceType)
+            } catch (e: Exception) {
+                throw FieldException("Failed to parse value: " + e.message, fieldPath, e)
             }
-            if (value == null) {
-                if (!valueType.isNullAllowed()) {
-                    throw FieldException("Null value", fieldPath)
-                }
-            }
-            coercedValues.put(argumentName, value)
+
+            coercedValues[argumentName] = parsed
         }
 
         return coercedValues
     }
 
-    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, variableValues: Map<String, Any?>, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
+    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
         val visitedFragments = visitedFragments ?: HashSet()
 
         val groupedFields = LinkedHashMap<String, MutableList<SelectionField>>()
 
         for (selection in selectionSet) {
-            if (shouldSkip(selection, variableValues))
+            if (shouldSkip(selection))
                 continue
 
             if (selection is SelectionField) {
                 val responseKey = selection.responseKey
-                groupedFields.computeIfAbsent(responseKey) { _ -> ArrayList() }.add(selection)
+                groupedFields.computeIfAbsent(responseKey) { ArrayList() }.add(selection)
             } else if (selection is SelectionFragmentSpread) {
                 val fragmentSpreadName = selection.getFragmentName()
                 if (visitedFragments.contains(fragmentSpreadName))
@@ -459,7 +429,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                     continue
 
                 val fragmentSelectionSet = fragmentDef.selectionSet
-                val fragmentGroupedFieldSet = collectFields(objectType, fragmentSelectionSet, variableValues, visitedFragments)
+                val fragmentGroupedFieldSet = collectFields(objectType, fragmentSelectionSet, visitedFragments)
                 appendLists(groupedFields, fragmentGroupedFieldSet)
             } else if (selection is SelectionInlineFragment) {
                 if (selection.typeConditionOpt != null) {
@@ -470,7 +440,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
                         continue
                 }
                 val fragmentSelectionSet = selection.selectionSet
-                val fragmentGroupedFieldSet = collectFields(objectType, fragmentSelectionSet, variableValues, visitedFragments)
+                val fragmentGroupedFieldSet = collectFields(objectType, fragmentSelectionSet, visitedFragments)
                 appendLists(groupedFields, fragmentGroupedFieldSet)
             }
         }
@@ -488,17 +458,17 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         }
     }
 
-    private fun shouldSkip(selection: Selection, variableValues: Map<String, Any?>): Boolean {
+    private fun shouldSkip(selection: Selection): Boolean {
         val skipDir = selection.findDirective("skip")
         if (skipDir != null) {
-            val skip = extractBooleanValue(skipDir, "if", variableValues)
+            val skip = extractBooleanValue(skipDir, "if")
             if (skip != null && skip)
                 return true
         }
 
         val includeDir = selection.findDirective("include")
         if (includeDir != null) {
-            val include = extractBooleanValue(includeDir, "if", variableValues)
+            val include = extractBooleanValue(includeDir, "if")
             if (include == null || !include)
                 return true
         }
@@ -506,21 +476,20 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return false
     }
 
-    private fun extractBooleanValue(directive: Directive, arg: String, variableValues: Map<String, Any?>): Boolean? {
+    private fun extractBooleanValue(directive: Directive, arg: String): Boolean? {
         val valueOrVar = directive.args[arg] ?: return null
 
-        if (valueOrVar is Variable) {
-            val varValue = variableValues[valueOrVar.name]
-            if (varValue is Boolean?)
-                return varValue
-            throw ValidationException("Variable valueOrVar.name should be a boolean")
-        }
+        val importedValue = inputVarParser.parseVar(valueOrVar, GJavaBooleanArrayType.NULLABLE_BOOL_TYPE)
 
-        return (valueOrVar as? ValueBool)?.value
+        return when (importedValue) {
+            is Boolean -> importedValue
+            importedValue != null -> throw ValidationException("Variable valueOrVar.name should be a boolean")
+            else -> null
+        }
     }
 
-    private fun coerceVariableValues(op: OperationDefinition): Map<String, Any?> {
-        val coercedValues = LinkedHashMap<String, Any?>()
+    private fun coerceVariableValues(op: OperationDefinition): Map<String, ValueOrNull> {
+        val coercedValues = LinkedHashMap<String, ValueOrNull>()
 
         for ((varName, value) in op.varDefs) {
             val varTypeDef = value.type
@@ -528,16 +497,13 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             if (rawVariables.containsKey(varName)) {
                 val type = getType(varTypeDef)
-                val rawVal: Any? = rawVariables.getValue(varName)
-                if (rawVal == null) {
-                    if (type.kind == TypeKind.NON_NULL)
-                        throw QueryException("Invalid null data for variable $$varName")
-                    coercedValues[varName] = null
-                } else {
-                    coercedValues[varName] = type.coerceValue(rawVal)
+
+                when (val rawVal = rawVariables.getValue(varName)) {
+                    is Value -> coercedValues[varName] = type.coerceValue(rawVal)
+                    is ValueNull -> coercedValues[varName] = rawVal
                 }
             } else if (defaultValue != null) {
-                coercedValues[varName] = defaultValue.toJson()
+                coercedValues[varName] = defaultValue
             } else {
                 if (varTypeDef is NotNullType)
                     throw QueryException("Missing data for variable $$varName")
@@ -547,29 +513,25 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return coercedValues
     }
 
-    @Throws(QueryException::class)
     private fun getType(typeDef: TypeDef): GType {
-        if (typeDef is NamedType) {
-            val typeName = typeDef.name
-            return schema.getGQLBaseType(typeName)
-        } else return if (typeDef is NotNullType) {
-            getType(typeDef.inner).notNull()
-        } else if (typeDef is ListType) {
-            getType(typeDef.inner).listOf()
-        } else {
-            throw Error("Unknown TypeDef type " + typeDef.javaClass)
+        return when (typeDef) {
+            is NamedType -> {
+                val typeName = typeDef.name
+                schema.getGQLBaseType(typeName)
+            }
+            is NotNullType -> getType(typeDef.inner).notNull()
+            is ListType -> getType(typeDef.inner).listOf()
         }
     }
 
     val operation: OperationDefinition
-        @Throws(QueryException::class)
         get() = if (opName == null) {
             if (opsByName.size == 1) {
                 opsByName.values.iterator().next()
             } else {
                 throw QueryException("Missing operationName")
             }
-        } else opsByName.get<String?, OperationDefinition>(opName) ?: throw QueryException("Operation ${opName} not found")
+        } else opsByName.get<String?, OperationDefinition>(opName) ?: throw QueryException("Operation $opName not found")
 
     private fun addError(message: String, fieldPath: FieldPath?, location: Token<*>?) {
         val error = mutableMapOf<String, Any?>("message" to message)
@@ -604,15 +566,13 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         // note we assume a valid query here, given the schema..
         // (so we don't check for duplicate names, etc. etc.)
         for (def in query!!.definitions) {
-            if (def is OperationDefinition) {
-                opsByName.put(def.name, def)
-            } else if (def is FragmentDefinition) {
-                fragmentsByName.put(def.name, def)
+            when (def) {
+                is OperationDefinition -> opsByName[def.name] = def
+                is FragmentDefinition -> fragmentsByName[def.name] = def
             }
         }
     }
 
-    @Throws(ParseException::class)
     private fun parseQuery() {
         this.query = GraphQLParser.parseQueryDoc(rawQuery)
     }

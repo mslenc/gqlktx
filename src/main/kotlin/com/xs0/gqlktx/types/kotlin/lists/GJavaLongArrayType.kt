@@ -1,7 +1,13 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.ScalarUtils
 import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.ValueList
+import com.xs0.gqlktx.dom.ValueNull
+import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.Variable
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
@@ -29,39 +35,18 @@ class GJavaLongArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJa
         (list as LongArray)[index] = (value as Number).toLong()
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): LongArray {
-        val n = array.size
-
-        val res = LongArray(n)
-        for (i in 0 until n) {
-            val o = array[i] ?: throw ValidationException("Null encountered in list of non-null longs")
-
-            if (o is Long) {
-                res[i] = o
-                continue
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): LongArray {
+        return LongArray(array.elements.size) { index ->
+            when (val element = array.elements[index]) {
+                is ValueNumber -> ScalarUtils.validateLong(element)
+                is ValueNull -> throw ValidationException("Null encountered in list of non-null longs")
+                is Variable -> inputVarParser.parseVar(element, NON_NULL_LONG_TYPE) as Long
+                else -> throw ValidationException("Something other than a number encountered in list of non-null longs")
             }
-
-            if (o !is Number)
-                throw ValidationException("Found a non-numeric value instead of long")
-
-            if (o is Byte || o is Short || o is Int) {
-                res[i] = o.toLong()
-                continue
-            }
-
-            if (o is Float || o is Double) {
-                val d = o.toDouble()
-                if ((d < java.lang.Long.MIN_VALUE) or (d > java.lang.Long.MAX_VALUE))
-                    throw ValidationException("Value out of range")
-                if (d != d.toLong().toDouble())
-                    throw ValidationException("Value is not representable as a long (it probably has a fraction)")
-                res[i] = o.toLong()
-                continue
-            }
-
-            throw ValidationException("Unrecognized type of number encountered")
         }
+    }
 
-        return res
+    companion object {
+        val NON_NULL_LONG_TYPE = Long::class.nonNullType()
     }
 }

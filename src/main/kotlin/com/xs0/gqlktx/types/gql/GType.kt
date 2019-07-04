@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.gql
 
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroType
 
@@ -34,5 +35,5 @@ abstract class GType protected constructor() {
         return cached
     }
 
-    abstract fun coerceValue(raw: Any): Any
+    abstract fun coerceValue(raw: Value): Value
 }

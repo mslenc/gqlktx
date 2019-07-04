@@ -1,7 +1,6 @@
 package com.xs0.gqlktx.exec
 
 import org.junit.Test
-
 import org.junit.Assert.*
 
 class FieldPathTest {

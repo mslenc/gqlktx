@@ -114,7 +114,7 @@ fun <SCHEMA: Any> findRootMethod(schema: KClass<SCHEMA>,
         }
 
         if (ann != null) {
-            if (explicitRoot != null) {
+            if (explicitRoot == null) {
                 explicitRoot = invokable
             } else {
                 throw IllegalStateException("More than one method marked with $explicitAnnotation in $schema")

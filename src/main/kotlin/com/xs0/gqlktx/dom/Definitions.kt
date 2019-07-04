@@ -2,7 +2,7 @@ package com.xs0.gqlktx.dom
 
 import com.xs0.gqlktx.parser.Token
 
-abstract class Definition
+sealed class Definition
 
 class OperationDefinition(
         val type: OpType,

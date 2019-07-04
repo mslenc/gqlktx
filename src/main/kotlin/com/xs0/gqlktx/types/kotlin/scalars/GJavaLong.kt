@@ -2,6 +2,7 @@ package com.xs0.gqlktx.types.kotlin.scalars
 
 import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.ScalarUtils
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
@@ -13,7 +14,7 @@ class GJavaLong<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(typ
             throw IllegalArgumentException("Not a long type: ${type.classifier}")
     }
 
-    override fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Long {
+    override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Long {
         return ScalarUtils.validateLong(value)
     }
 

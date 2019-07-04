@@ -1,6 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.dom.ValueList
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
@@ -40,20 +40,14 @@ class GJavaArrayType<CTX>(type: KType, elementType: GJavaType<CTX>, gqlType: GTy
         javaArray.set(list, index, value)
     }
 
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): Any {
-        val n = array.size
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): Any {
+        val elements = array.elements
+        val n = elements.size
         val res = createList(n)
 
         for (i in 0 until n) {
-            val el = array[i]
-            if (el == null) {
-                if (!elementType.isNullAllowed())
-                    throw ValidationException("null encountered in list of non-nulls")
-            } else {
-                javaArray.set(res, i, elementType.getFromJson(el, inputVarParser))
-            }
+            javaArray.set(res, i, inputVarParser.parseVar(elements[i], elementType))
         }
-
 
         return res
     }

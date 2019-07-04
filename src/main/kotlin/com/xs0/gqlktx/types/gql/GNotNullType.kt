@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.gql
 
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.builder.TypeKind
 
 class GNotNullType(innerType: GType) : GWrappingType(innerType) {
@@ -14,7 +15,7 @@ class GNotNullType(innerType: GType) : GWrappingType(innerType) {
     override val gqlTypeString: String
         get() = wrappedType.gqlTypeString + "!"
 
-    override fun coerceValue(raw: Any): Any {
+    override fun coerceValue(raw: Value): Value {
         return wrappedType.coerceValue(raw)
     }
 }

@@ -205,7 +205,7 @@ class PackedIdListReader(private val input: InputStream) {
     }
 
     private fun readRawVarint32(): Int {
-        var result: Int = 0
+        var result = 0
         var shift = 0
         while (shift < 32) {
             val b = input.read()

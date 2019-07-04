@@ -12,8 +12,8 @@ class Token<out V: Any>(val row: Int, val column: Int, val type: Type, val rawVa
 
     enum class Type {
         // literals:
-        INTEGER,
-        LONG, FLOAT, STRING,
+        NUMBER,
+        STRING,
 
         // name (identifier / keyword):
         NAME,

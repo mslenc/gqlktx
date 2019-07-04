@@ -14,7 +14,7 @@ class GField(val name: String, val type: GType, val arguments: Map<String, GArgu
 
     fun toString(sb: StringBuilder) {
         sb.append(name)
-        if (!arguments.isEmpty()) {
+        if (arguments.isNotEmpty()) {
             sb.append("(")
             var first = true
             for (arg in arguments.values) {

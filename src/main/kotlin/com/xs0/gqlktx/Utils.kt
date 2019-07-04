@@ -1,12 +1,8 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.dom.*
 import java.beans.Introspector
-import java.lang.reflect.Array
-import java.lang.reflect.GenericArrayType
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
@@ -50,18 +46,6 @@ fun getterName(methodName: String, isBoolean: Boolean): String? {
     return Introspector.decapitalize(suffix)
 }
 
-fun setterName(methodName: String): String? {
-    val suffix: String
-    if (methodName.startsWith("set")) {
-        suffix = methodName.substring(3)
-    } else {
-        return null
-    }
-
-    return if (suffix.isEmpty()) null else Introspector.decapitalize(suffix)
-
-}
-
 fun extractTypeParam(source: KType?, vararg types: KClass<*>): KType? {
     var curr = source
     for (type in types) {
@@ -79,40 +63,10 @@ fun extractTypeParam(source: KType?, vararg types: KClass<*>): KType? {
     return curr
 }
 
-fun getNullValue(type: Type): Any? {
-    if (type is Class<*>) {
-        if (type.isPrimitive) {
-            if (type == Void.TYPE)
-                throw IllegalArgumentException("There is no null value for void")
-
-            if (type == Int::class.javaPrimitiveType)
-                return 0
-            if (type == Boolean::class.javaPrimitiveType)
-                return false
-            if (type == Double::class.javaPrimitiveType)
-                return 0.0
-            if (type == Long::class.javaPrimitiveType)
-                return 0L
-            if (type == Byte::class.javaPrimitiveType)
-                return 0.toByte()
-            if (type == Short::class.javaPrimitiveType)
-                return 0.toShort()
-            if (type == Float::class.javaPrimitiveType)
-                return 0.0f
-            if (type == Char::class.javaPrimitiveType)
-                return '\u0000'
-
-            throw Error("A new primitive type seems to have been introduced")
-        }
-    }
-
-    return null
-}
-
 private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
 
 private var fromBase64: IntArray = run {
-    val fromBase64: IntArray = IntArray('z'.toInt() + 1)
+    val fromBase64 = IntArray('z'.toInt() + 1)
     Arrays.fill(fromBase64, -1)
     for (i in 0..63)
         fromBase64[toBase64[i].toInt()] = i
@@ -149,11 +103,9 @@ fun validateBase64(s: String): String? {
     if (shift == 2)
         return "Last unit does not have enough valid bits"
 
-    return if (pos < len) "Input string has incorrect ending byte at " + pos else null
+    return if (pos < len) "Input string has incorrect ending byte at $pos" else null
 
 }
-
-private val arrayClasses = ConcurrentHashMap<Class<*>,Class<*>>()
 
 fun <K, V> appendLists(target: MutableMap<K, MutableList<V>>, source: MutableMap<K, MutableList<V>>) {
     for ((key, value) in source) {
@@ -173,25 +125,37 @@ fun String?.trimToNull(): String? {
     return trimmed
 }
 
-fun Optional<String>?.trimToNull(): String? {
-    if (this == null)
-        return null
-    return orElse(null).trimToNull()
-}
+fun importVariables(json: Map<String, Any?>): Map<String, ValueOrNull> {
+    if (json.isEmpty())
+        return emptyMap()
 
-fun Double.ensureFinite(): Double {
-    if (java.lang.Double.isFinite(this)) {
-        return this
-    } else {
-        throw IllegalArgumentException("Can't use NaNs or infinities")
+    val result = LinkedHashMap<String, ValueOrNull>()
+
+    for ((key, value) in json.entries) {
+        result[key] = importVariable(value)
     }
+
+    return result
 }
 
-inline fun Int.ifNotZero(block: (Int) -> Unit) {
-    if (this != 0)
-        block(this)
-}
+private fun importVariable(value: Any?): ValueOrNull {
+    if (value == null)
+        return ValueNull()
 
-inline fun Int.ifZero(block: () -> Int): Int {
-    return if (this == 0) block() else this
+    return when (value) {
+        is String -> ValueString(value)
+        is Number -> ValueNumber(value.toString())
+        is Boolean -> ValueBool(value)
+        is Map<*,*> -> {
+            @Suppress("UNCHECKED_CAST")
+            val map = value as Map<String, Any?>
+            ValueObject(importVariables(map))
+        }
+        is Iterable<*> -> {
+            ValueList(value.map { importVariable(it) })
+        }
+        else -> {
+            throw IllegalArgumentException("Unknown type of variable encountered")
+        }
+    }
 }

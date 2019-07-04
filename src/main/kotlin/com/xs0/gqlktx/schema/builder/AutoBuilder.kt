@@ -1,6 +1,7 @@
 package com.xs0.gqlktx.schema.builder
 
 import com.xs0.gqlktx.*
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.intro.GqlIntroSchema
 import com.xs0.gqlktx.types.gql.*
@@ -72,7 +73,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         return schema.addBaseType(baseType)
     }
 
-    protected fun getOrCreateScalarType(name: String, validator: (Any)->Any): GScalarType {
+    protected fun getOrCreateScalarType(name: String, validator: (Value)->Any): GScalarType {
         val existingType = schema.getBaseType(name)
         return if (existingType != null) {
             existingType as? GScalarType ?: throw IllegalStateException("Type $name already exists, but is not a scalar type")
@@ -172,7 +173,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     fun build(): Schema<SCHEMA, CTX> {
         val schemaClass = schema.schemaClass
 
-        val getQueryRoot = findRootMethod(schemaClass, GqlQueryRoot::class, "query", "getQuery") ?: throw IllegalArgumentException("Couldn't find getQuery in " + schemaClass)
+        val getQueryRoot = findRootMethod(schemaClass, GqlQueryRoot::class, "query", "getQuery") ?: throw IllegalArgumentException("Couldn't find getQuery in $schemaClass")
 
         val getMutationRoot = findRootMethod(schemaClass, GqlMutationRoot::class, "mutation", "getMutation")
         // (mutation is optional)
@@ -242,10 +243,15 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             return result
         }
 
+        if (parsedType.kind == SemiTypeKind.MAYBE) {
+            val innerType = constructWrappedTypes(parsedType.inner!!, baseType)
+            val result = GJavaMaybeType(parsedType.sourceType, innerType, innerType.gqlType)
+            add(result)
+            return result
+        }
+
         if (parsedType.kind == SemiTypeKind.OBJECT || parsedType.kind == SemiTypeKind.PRIMITIVE_ARRAY)
             return baseType
-
-
 
         val innerType = constructWrappedTypes(parsedType.inner!!, baseType)
         val result: GJavaType<CTX>
@@ -441,16 +447,16 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val result = GJavaInputObjectType<CTX>(baseClass.nullableType(), gtype, reflected)
         add(result)
 
-        for ((_, propInfo) in reflected.propTypes)
+        for (propInfo in reflected.props)
             scanTypes(propInfo.type.sourceType, true)
 
-        latentChecks.add({
-            for ((name, propInfo) in reflected.propTypes) {
+        latentChecks.add {
+            for (propInfo in reflected.props) {
                 val type = schema.getJavaType(propInfo.type.sourceType)?.gqlType ?: throw IllegalStateException("Didn't find it")
 
-                gqlFields.put(name, GField(name, type, emptyMap()))
+                gqlFields[propInfo.name] = GField(name, type, emptyMap())
             }
-        })
+        }
 
         return result
     }
@@ -487,10 +493,10 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                 val argType = schema.getJavaType(p.type.sourceType) ?: throw IllegalStateException("Couldn't find it")
 
                 val arg = GArgument(p.name, argType.gqlType, p.defaultValue)
-                arguments.put(arg.name, arg)
+                arguments[arg.name] = arg
             }
 
-            gqlFields.put(key, GField(key, type, arguments))
+            gqlFields[key] = GField(key, type, arguments)
         }
     }
 
@@ -516,9 +522,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     protected fun buildStandardEnum(name: String, enumClass: KClass<*>): GJavaStandardEnum<CTX> {
         val values = getEnumValues(enumClass)
 
-        val valuesByName = LinkedHashMap<String, Any>()
-        for (value in values)
-            valuesByName.put(value.name, value)
+        val valuesByName = values.associateBy { it.name }
 
         val enumType = GEnumType(name, LinkedHashSet(valuesByName.keys))
         addBaseType(enumType)
@@ -543,7 +547,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                 posibs.add(kind)
 
         if (posibs.size > 1)
-            throw IllegalArgumentException(baseClass.toString() + " is marked with too many kinds: " + posibs)
+            throw IllegalArgumentException("$baseClass is marked with too many kinds: $posibs")
 
         if (posibs.size == 1)
             return posibs.first()

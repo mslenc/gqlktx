@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin
 
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GType
 
@@ -10,7 +11,7 @@ abstract class GJavaType<CTX>(val type: KType, open val gqlType: GType) {
         return type.isMarkedNullable
     }
 
-    abstract fun getFromJson(value: Any, inputVarParser: InputVarParser<CTX>): Any
+    abstract fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Any
 
     abstract fun checkUsage(isInput: Boolean)
 }

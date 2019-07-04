@@ -1,6 +1,7 @@
 package com.xs0.gqlktx.schema.builder
 
 import com.xs0.gqlktx.SyncInvokable
+import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.types.gql.GBaseType
 import com.xs0.gqlktx.types.gql.GScalarType
@@ -26,7 +27,7 @@ class SchemaBuilder<SCHEMA: Any, CTX: Any>(
      * @param varValueValidator a validator function, which takes a value obtained from JSON, verifies it is valid, and coerces it to the expected type (e.g. for Int, the validator would check that the value is a number which fits into 32 bits and has no non-zero fraction; it would also convert it to Integer, if needed)
      * @return the new type
      */
-    fun createScalarType(name: String, varValueValidator: (Any)->Any): GScalarType {
+    fun createScalarType(name: String, varValueValidator: (Value)->Any): GScalarType {
         return addBaseType(GScalarType(name, varValueValidator))
     }
 
@@ -42,7 +43,7 @@ class SchemaBuilder<SCHEMA: Any, CTX: Any>(
         if (baseTypes.containsKey(name))
             throw IllegalStateException("Type $name is already defined")
 
-        baseTypes.put(name, baseType)
+        baseTypes[name] = baseType
         return baseType
     }
 
@@ -54,7 +55,7 @@ class SchemaBuilder<SCHEMA: Any, CTX: Any>(
         if (types.containsKey(javaType.type))
             throw IllegalStateException("Type " + javaType.type + " is already defined")
 
-        types.put(javaType.type, javaType)
+        types[javaType.type] = javaType
     }
 
     fun getBaseType(name: String): GBaseType? {

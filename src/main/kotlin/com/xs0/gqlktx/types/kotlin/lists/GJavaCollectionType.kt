@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
+import com.xs0.gqlktx.dom.ValueList
 import com.xs0.gqlktx.exec.InputVarParser
 import com.xs0.gqlktx.types.gql.GListType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
@@ -74,21 +75,12 @@ class GJavaCollectionType<CTX>(listClass: KType, elementType: GJavaType<CTX>, gq
         (list as MutableCollection<Any?>).add(value)
     }
 
-    @Throws(Exception::class)
-    override fun transformFromJson(array: List<Any?>, inputVarParser: InputVarParser<CTX>): Collection<Any?> {
-        val res = createList(array.size)
+    override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): Collection<Any?> {
+        val elements = array.elements
+        val res = createList(elements.size)
 
-        for (i in 0 until array.size) {
-            val el = array[i]
-            if (el == null) {
-                if (elementType.isNullAllowed()) {
-                    res.add(null)
-                } else {
-                    throw IllegalArgumentException("null encountered in array of supposedly non-null values")
-                }
-            } else {
-                res.add(elementType.getFromJson(el, inputVarParser))
-            }
+        elements.forEach {
+            res.add(inputVarParser.parseVar(it, elementType))
         }
 
         return res

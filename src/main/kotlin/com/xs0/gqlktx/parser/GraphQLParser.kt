@@ -9,7 +9,6 @@ import com.xs0.gqlktx.parser.Token.Type.*
 
 class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
 
-    @Throws(ParseException::class)
     internal fun parseQueryDoc(): Document {
         val defs = ArrayList<Definition>()
 
@@ -33,7 +32,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     internal fun parseFullOperationDefinition(opType: OpType): Definition {
         expect<Any>(NAME) // "query"/"mutation"/"subscription"..
 
@@ -46,7 +44,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return OperationDefinition(opType, name, varDefs, directives, selections)
     }
 
-    @Throws(ParseException::class)
     internal fun parseVariableDefsOpt(): Map<String, VariableDefinition> {
         if (!consume(LPAREN))
             return emptyMap()
@@ -60,7 +57,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return res
     }
 
-    @Throws(ParseException::class)
     internal fun parseVariableDef(out: MutableMap<String, VariableDefinition>) {
         expect<Any>(DOLLAR)
         val name = expect<String>(NAME)
@@ -68,16 +64,15 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
             throw ParseException("Name " + name.value + " has already been defined", name)
         expect<Any>(COLON)
         val typeDef = parseType()
-        val defaultVal: Value?
+        val defaultVal: ValueOrNull?
         if (consume(EQ)) {
-            defaultVal = parseValue(false) as Value
+            defaultVal = parseValue(false) as ValueOrNull
         } else {
             defaultVal = null
         }
-        out.put(name.value, VariableDefinition(name, typeDef, defaultVal))
+        out[name.value] = VariableDefinition(name, typeDef, defaultVal)
     }
 
-    @Throws(ParseException::class)
     internal fun parseType(): TypeDef {
         val type: TypeDef
 
@@ -95,7 +90,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     internal fun parseSelectionSet(): List<Selection> {
         expect<Any>(LCURLY)
         forbidden(RCURLY, "Expected one or more selections")
@@ -108,7 +102,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return res
     }
 
-    @Throws(ParseException::class)
     internal fun parseSelection(): Selection {
         if (consume(SPREAD)) {
             if (tokens.peek<Any>().type === NAME) {
@@ -150,7 +143,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     internal fun parseFragmentDefinition(): FragmentDefinition {
         expectName("fragment")
 
@@ -165,7 +157,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return FragmentDefinition(name, NamedType(type), directives, selections)
     }
 
-    @Throws(ParseException::class)
     internal fun parseDirectives(): List<Directive> {
         if (tokens.peek<Any>().type !== AT)
             return emptyList()
@@ -177,7 +168,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return res
     }
 
-    @Throws(ParseException::class)
     internal fun parseDirective(): Directive {
         expect<Any>(AT)
         val name = expect<String>(NAME)
@@ -185,7 +175,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return Directive(name, args)
     }
 
-    @Throws(ParseException::class)
     internal fun parseArgumentsOpt(): Map<String, ValueOrVar> {
         if (!consume(LPAREN))
             return emptyMap()
@@ -198,7 +187,7 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
             expect<Any>(COLON)
             val value = parseValue(true)
 
-            res.put(name.value as String, value)
+            res[name.value as String] = value
         }
 
         return res
@@ -213,19 +202,16 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     internal fun parseValue(allowVars: Boolean): ValueOrVar {
         val token = tokens.next<Any>()
         when (token.type) {
-            INTEGER -> return ValueInt(cast(token))
-            LONG -> return ValueLong(cast(token))
-            FLOAT -> return ValueFloat(cast(token))
-            STRING -> return ValueString(cast(token))
+            NUMBER -> return ValueNumber(token.value.toString(), cast(token))
+            STRING -> return ValueString(token.value.toString(), cast(token))
             NAME -> when (token.rawValue) {
                 "null" -> return ValueNull(cast(token))
-                "true" -> return ValueBool(cast(token), true)
-                "false" -> return ValueBool(cast(token), false)
-                else -> return ValueEnum(cast(token))
+                "true" -> return ValueBool(true, cast(token))
+                "false" -> return ValueBool(false, cast(token))
+                else -> return ValueEnum(token.value.toString(), cast(token))
             }
             LBRACK -> return ValueList(parseRestOfList(allowVars))
             LCURLY -> return ValueObject(parseRestOfObject(allowVars))
@@ -239,7 +225,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     internal fun parseRestOfList(allowVars: Boolean): List<ValueOrVar> {
         if (consume(RBRACK))
             return emptyList()
@@ -250,7 +235,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return res
     }
 
-    @Throws(ParseException::class)
     internal fun parseRestOfObject(allowVars: Boolean): Map<String, ValueOrVar> {
         if (consume(RCURLY))
             return emptyMap()
@@ -261,21 +245,19 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
             expect<Any>(COLON)
             val value = parseValue(allowVars)
 
-            res.put(name.value as String, value)
+            res[name.value as String] = value
         }
 
         return res
     }
 
-    @Throws(ParseException::class)
     private inline fun <reified T: Any> expect(type: Token.Type): Token<T> {
         val token = tokens.next<T>()
-        if (token.type == type && token.value is T)
+        if (token.type == type)
             return token
         throw ParseException("Expected $type instead of $token", token)
     }
 
-    @Throws(ParseException::class)
     private fun expectName(name: String): Token<String> {
         val token = expect<String>(NAME)
         if (!token.`is`(name))
@@ -283,12 +265,10 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         return token
     }
 
-    @Throws(ParseException::class)
     private fun consume(type: Token.Type): Boolean {
         return maybe<Any>(type) != null
     }
 
-    @Throws(ParseException::class)
     private fun <T: Any> maybe(type: Token.Type): Token<T>? {
         return if (tokens.peek<Any>().type === type) {
             tokens.next<Any>() as Token<T>
@@ -297,7 +277,6 @@ class GraphQLParser internal constructor(private val tokens: GraphQLTokenizer) {
         }
     }
 
-    @Throws(ParseException::class)
     private fun forbidden(type: Token.Type, message: String) {
         val token = maybe<Any>(type)
         if (token != null)

@@ -1,83 +1,76 @@
 package com.xs0.gqlktx
 
+import com.xs0.gqlktx.dom.Value
+import com.xs0.gqlktx.dom.ValueBool
+import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.ValueString
 import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 import java.util.regex.Pattern
+import kotlin.math.ceil
+import kotlin.math.floor
 
 object ScalarUtils {
-    fun validateInteger(value: Any): Int {
-        return if (value is Number) {
-            validateInteger(value)
-        } else {
+    fun validateInteger(value: Value): Int {
+        if (value !is ValueNumber)
             throw ValidationException("Expected an integer value")
-        }
-    }
 
-    fun validateInteger(num: Number): Int {
-        if (num is Int)
-            return num
+        value.value.toIntOrNull()?.let { return it }
 
-        if (num.toInt().toDouble() != num.toDouble())
-        // 32-bit ints fit exactly in double
+        val dval = value.value.toDoubleOrNull() ?: throw ValidationException("Expected an integer value")
+
+        if (dval == dval.toInt().toDouble()) // 32-bit ints fit exactly in double
             throw ValidationException("Expected an integer value, but it has a fractional part and/or is out of range")
 
-        return num.toInt()
+        return dval.toInt()
     }
 
-    fun validateLong(value: Any): Long {
-        return if (value is Number) {
-            validateLong(value)
-        } else {
+    fun validateShort(value: Value): Short {
+        val intVal = validateInteger(value)
+
+        if (intVal !in Short.MIN_VALUE..Short.MAX_VALUE)
+            throw ValidationException("Value out of range for short")
+
+        return intVal.toShort()
+    }
+
+    fun validateLong(value: Value): Long {
+        if (value !is ValueNumber)
             throw ValidationException("Expected a long value")
-        }
+
+        value.value.toLongOrNull()?.let { return it }
+
+        val dval = value.value.toDoubleOrNull() ?: throw ValidationException("Expected a long value")
+
+        if (dval < Long.MIN_VALUE || dval > Long.MAX_VALUE)
+            throw ValidationException("Long value out of range")
+
+        if (ceil(dval) != floor(dval))
+            throw ValidationException("Long value can't have fractional digits")
+
+        return dval.toLong()
     }
 
-    fun validateLong(num: Number): Long {
-        if (num is Long)
-            return num
+    fun validateString(value: Value): String {
+        if (value !is ValueString)
+            throw ValidationException("Expected a String value")
 
-        if (num is Float || num is Double) {
-            val dval = num.toDouble()
-            if (dval < java.lang.Long.MIN_VALUE || dval > java.lang.Long.MAX_VALUE)
-                throw ValidationException("Long value out of range")
-            if (Math.ceil(dval) != Math.floor(dval))
-                throw ValidationException("Long value can't have fractional digits")
-            return dval.toLong()
-        }
-
-        return num.toLong() // hopefully we caught all other common types (byte, short, int, AtomicInteger, AtomicLong)
+        return value.value
     }
 
-    fun validateString(value: Any): String {
-        if (value is CharSequence)
-            return value.toString()
+    fun validateID(value: Value): String {
+        val str = validateString(value)
 
-        throw ValidationException("Expected a String value")
+        if (str.isEmpty())
+            throw ValidationException("An ID can't be empty")
+
+        return str
     }
 
-    fun validateID(str: Any): String {
-        if (str is CharSequence) {
-            if (str.isEmpty())
-                throw ValidationException("An ID can't be empty")
-
-            return str.toString()
-        }
-
-        throw ValidationException("Expected an ID (String) value")
-    }
-
-    fun validateFloat(value: Any): Double {
-        return if (value is Number) {
-            validateFloat(value)
-        } else {
+    fun validateFloat(value: Value): Double {
+        if (value !is ValueNumber)
             throw ValidationException("Expected a Float value")
-        }
-    }
 
-    fun validateFloat(num: Number): Double {
-        val d = num.toDouble()
+        val d = value.value.toDoubleOrNull() ?: throw ValidationException("Expected a Float value")
 
         if (d.isNaN())
             throw ValidationException("NaN encountered")
@@ -87,56 +80,70 @@ object ScalarUtils {
         return d
     }
 
-    fun validateBoolean(value: Any): Boolean {
-        if (value is Boolean)
-            return value
+    fun validateSingleFloat(value: Value): Float {
+        val f = validateFloat(value).toFloat()
+
+        if (f.isInfinite())
+            throw ValidationException("Value out of range for float")
+
+        return f
+    }
+
+    fun validateBoolean(value: Value): Boolean {
+        if (value is ValueBool)
+            return value.value
 
         throw ValidationException("Expected a Boolean value")
     }
 
-    fun validateBytes(str: Any): String {
-        if (str is String) {
-            val err = validateBase64(str)
-            if (err != null)
-                throw ValidationException("Not a valid base-64 encoded value: " + err)
-            return str
-        }
+    fun validateBytes(value: Value): String {
+        val str = validateString(value)
 
-        throw ValidationException("Expected a Bytes (base-64 encoded String) value")
+        val err = validateBase64(str)
+        if (err != null)
+            throw ValidationException("Not a valid base-64 encoded value: $err")
+
+        return str
     }
 
-    val DATE_PATTERN = Pattern.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
-    fun validateDate(str: Any): String {
-        if (str is CharSequence && DATE_PATTERN.matcher(str).matches())
-            return str.toString()
+    private val DATE_PATTERN: Pattern = Pattern.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    fun validateDate(value: Value): String {
+        val str = validateString(value)
+
+        if (DATE_PATTERN.matcher(str).matches())
+            return str
 
         throw ValidationException("Expected a valid date string in format \"YYYY-MM-DD\"")
     }
 
-    val TIME_PATTERN = Pattern.compile("^[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?$")
-    fun validateTime(str: Any): String {
-        if (str is CharSequence && TIME_PATTERN.matcher(str).matches())
-            return str.toString()
+    private val TIME_PATTERN: Pattern = Pattern.compile("^[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?$")
+    fun validateTime(value: Value): String {
+        val str = validateString(value)
+
+        if (TIME_PATTERN.matcher(str).matches())
+            return str
 
         throw ValidationException("Expected a valid time string in format \"HH:MM:SS[.mmm]\"")
     }
 
-    val DATETIME_PATTERN = Pattern.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$")
-    fun validateDateTime(str: Any): String {
-        if (str is CharSequence && DATETIME_PATTERN.matcher(str).matches())
-            return str.toString()
+    private val DATETIME_PATTERN: Pattern = Pattern.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$")
+    fun validateDateTime(value: Value): String {
+        val str = validateString(value)
+
+        if (DATETIME_PATTERN.matcher(str).matches())
+            return str
 
         throw ValidationException("Expected a valid datetime string in format \"YYYY-MM-DDThh:mm:ss\"")
     }
 
-    fun validateInstant(str: Any): String {
-        if (str is CharSequence) {
-            try {
-                Instant.parse(str)
-                return str.toString()
-            } catch (e: Exception ) {
-                // throw below
-            }
+    fun validateInstant(value: Value): String {
+        val str = validateString(value)
+
+        try {
+            Instant.parse(str)
+            return str
+        } catch (e: Exception ) {
+            // throw below
         }
 
         throw ValidationException("Expected a valid Instant string in format \"YYYY-MM-DDThh:mm:ssZ\"")
