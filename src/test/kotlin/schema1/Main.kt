@@ -38,4 +38,47 @@ class FirstTest {
         assertNotNull(result["data"])
         assertEquals("{posts=[{id=w3BzdAEB, title=First post ever, text=null, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}, {id=w3BzdAED, title=Second post ever, text=With text this time :), owner={id=w3VzcgEC, email=john@example.com, fullName=John}}, {id=w3BzdAEI, title=Third post, text=Something old, something new, owner={id=w3VzcgED, email=mary@example.com, fullName=Mary Johnson}}, {id=w3BzdAEJ, title=Final post, text=Again, some text, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}]}", result["data"].toString())
     }
+
+    @Test
+    fun typeIntrospectionShouldWork() {
+        val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
+        builder.setClassPathScanSpec("schema1.*")
+        val schema = builder.build()
+        val context = TestContextProvider("foo")
+        val query = """
+                        {
+                            postType: __type(name: "Post") {
+                                kind
+                                name
+                                fields {
+                                    name
+                                    type {
+                                        kind
+                                        name
+                                    }
+                                }
+                            }
+                            
+                            filterType: __type(name: "PostFilters") {
+                                kind
+                                name
+                                inputFields {
+                                    name
+                                    type {
+                                        name
+                                    }
+                                }
+                            }
+                        }
+                    """.trimIndent()
+
+        val result: Map<String, Any?> = runBlocking {
+            SimpleQueryExecutor.execute(schema, SchemaRoot, context, QueryInput(query, null, null, false))
+        }
+
+        assertNotNull(result)
+        assertNull(result["errors"])
+        assertNotNull(result["data"])
+        assertEquals("{postType={kind=OBJECT, name=Post, fields=[{name=id, type={kind=NON_NULL, name=null}}, {name=text, type={kind=SCALAR, name=String}}, {name=title, type={kind=NON_NULL, name=null}}, {name=tags, type={kind=NON_NULL, name=null}}, {name=owner, type={kind=NON_NULL, name=null}}]}, filterType={kind=INPUT_OBJECT, name=PostFilters, inputFields=[{name=titleWords, type={name=String}}, {name=keywords, type={name=String}}]}}", result["data"].toString())
+    }
 }

@@ -454,7 +454,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             for (propInfo in reflected.props) {
                 val type = schema.getJavaType(propInfo.type.sourceType)?.gqlType ?: throw IllegalStateException("Didn't find it")
 
-                gqlFields[propInfo.name] = GField(name, type, emptyMap())
+                gqlFields[propInfo.name] = GField(propInfo.name, type, emptyMap())
             }
         }
 

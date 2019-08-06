@@ -34,7 +34,7 @@ class Schema<SCHEMA, CTX>(
             )
 
             val nonNullString = SemiType.create(String::class.createType(nullable = false))!!
-            val nameParam = ParamInfo<CTX>("type", nonNullString)
+            val nameParam = ParamInfo<CTX>("name", nonNullString)
 
             INTRO_TYPE = FieldGetterRegularFunction(
                     SemiType.create(GqlIntroType::class.createType(nullable=true)) ?: throw Error("Couldn't process __type"),

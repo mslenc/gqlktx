@@ -2,6 +2,7 @@ package schema1
 
 import com.xs0.gqlktx.GqlField
 import com.xs0.gqlktx.trimToNull
+import com.xs0.gqlktx.utils.Maybe
 import com.xs0.gqlktx.utils.NodeId
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -48,6 +49,11 @@ class TestContextProvider(value: String) {
     val ctxString = ContextualString(value)
 }
 
+data class PostFilters(
+    val titleWords: String? = null,
+    val keywords: Maybe<String?>? = null
+)
+
 object SchemaRoot {
     val query = QueryRoot
 }
@@ -56,7 +62,7 @@ object QueryRoot {
     val users: Collection<User>
         get() { return Data.users.values }
 
-    fun getPosts(): Collection<Post> {
+    fun getPosts(filters: PostFilters?): Collection<Post> {
         return Data.posts.values
     }
 
