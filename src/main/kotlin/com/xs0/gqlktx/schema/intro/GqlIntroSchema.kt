@@ -22,7 +22,7 @@ class GqlIntroSchema(private val schema: Schema<*, *>) {
 
         res.add(
                 GqlIntroDirective(
-                        "if",
+                        "include",
                         "Directs the executor to include this field or fragment only when the `if` argument is true.",
                         listOf(FIELD, FRAGMENT_SPREAD, INLINE_FRAGMENT),
                         listOf(GqlIntroInputValue("if", "Included when true.", boolNotNull, null))

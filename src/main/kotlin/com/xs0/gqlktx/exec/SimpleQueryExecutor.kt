@@ -136,7 +136,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
     }
 
     private suspend fun executeSelectionSet(selectionSet: List<Selection>, objectType: GJavaObjectType<CTX>, objectValue: Any, parentPath: FieldPath, concurrent: Boolean = true): Map<String, Any?>? = supervisorScope {
-        val groupedFieldSet = collectFields(objectType, selectionSet, null)
+        val groupedFieldSet = collectFields(objectType, selectionSet, HashSet())
 
         val jsonResult = LinkedHashMap<String, Any?>()
 
@@ -402,9 +402,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         return coercedValues
     }
 
-    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, visitedFragments: HashSet<String>?): MutableMap<String, MutableList<SelectionField>> {
-        val visitedFragments = visitedFragments ?: HashSet()
-
+    fun collectFields(objectType: GJavaObjectType<CTX>, selectionSet: List<Selection>, visitedFragments: MutableSet<String>): MutableMap<String, MutableList<SelectionField>> {
         val groupedFields = LinkedHashMap<String, MutableList<SelectionField>>()
 
         for (selection in selectionSet) {
