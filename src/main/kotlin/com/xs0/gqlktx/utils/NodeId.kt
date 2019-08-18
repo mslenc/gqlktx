@@ -10,7 +10,6 @@ import kotlin.reflect.KClass
  * A helper ID thing for use with Relay-compliant schemas. Contains a type part,
  * and an array of id parts, which can be/are type-specific.
  *
- *
  * The string encoding is produced by converting the whole thing into a binary encoding
  * (see [PackedIdListWriter]), then base64url-encoding that.
  */
