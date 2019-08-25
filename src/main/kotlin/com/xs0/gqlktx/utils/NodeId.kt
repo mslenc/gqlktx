@@ -41,6 +41,19 @@ class NodeId private constructor(val typeId: String, private val parts: Array<An
         return encoded
     }
 
+    override fun equals(other: Any?): Boolean {
+        return when {
+            other === this -> true
+            other is NodeId -> typeId == other.typeId && parts.contentEquals(other.parts)
+            else -> false
+        }
+    }
+
+    override fun hashCode(): Int {
+        return 31 * typeId.hashCode() + parts.contentHashCode()
+    }
+
+
     class Builder internal constructor(private val typeId: String) {
         private val encoded: StringOutputStream = StringOutputStream()
         private val base64: OutputStream = Base64.getUrlEncoder().withoutPadding().wrap(encoded)
