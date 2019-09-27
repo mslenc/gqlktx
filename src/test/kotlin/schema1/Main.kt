@@ -1,5 +1,6 @@
 package schema1
 
+import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.dom.ValueBool
 import com.xs0.gqlktx.dom.ValueOrNull
 import com.xs0.gqlktx.exec.SimpleQueryExecutor
@@ -13,7 +14,7 @@ class FirstTest {
     @Test
     fun aResultShouldBeReturned() {
         val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
-        builder.setClassPathScanSpec("schema1.*")
+        builder.setClassPathScanSpec("schema1")
         val schema = builder.build()
         val context = TestContextProvider("foo")
         val query = """
@@ -44,7 +45,7 @@ class FirstTest {
     @Test
     fun includeDirectiveShouldWork() {
         val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
-        builder.setClassPathScanSpec("schema1.*")
+        builder.setClassPathScanSpec("schema1")
         val schema = builder.build()
         val context = TestContextProvider("foo")
         val query = """
@@ -80,7 +81,7 @@ class FirstTest {
     @Test
     fun skipDirectiveShouldWork() {
         val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
-        builder.setClassPathScanSpec("schema1.*")
+        builder.setClassPathScanSpec("schema1")
         val schema = builder.build()
         val context = TestContextProvider("foo")
         val query = """
@@ -116,7 +117,7 @@ class FirstTest {
     @Test
     fun typeIntrospectionShouldWork() {
         val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
-        builder.setClassPathScanSpec("schema1.*")
+        builder.setClassPathScanSpec("schema1")
         val schema = builder.build()
         val context = TestContextProvider("foo")
         val query = """
@@ -154,5 +155,37 @@ class FirstTest {
         assertNull(result["errors"])
         assertNotNull(result["data"])
         assertEquals("{postType={kind=OBJECT, name=Post, fields=[{name=id, type={kind=NON_NULL, name=null}}, {name=text, type={kind=SCALAR, name=String}}, {name=title, type={kind=NON_NULL, name=null}}, {name=tags, type={kind=NON_NULL, name=null}}, {name=owner, type={kind=NON_NULL, name=null}}]}, filterType={kind=INPUT_OBJECT, name=PostFilters, inputFields=[{name=titleWords, type={name=String}}, {name=keywords, type={name=String}}]}}", result["data"].toString())
+    }
+
+    @Test
+    fun abstractClassInterfacesShouldWork() {
+        val builder = AutoBuilder(SchemaRoot::class, TestContextProvider::class)
+        builder.setClassPathScanSpec("schema1")
+        val schema = builder.build()
+        val context = TestContextProvider("foo")
+        val query = """
+                        {
+                            orgs {
+                                id
+                                name
+                                allEnums {
+                                    id
+                                    name
+                                    ... on ClientRating {
+                                        comments
+                                    }
+                                }
+                            }
+                        }
+                    """.trimIndent()
+
+        val result: Map<String, Any?> = runBlocking {
+            SimpleQueryExecutor.execute(schema, SchemaRoot, context, QueryInput(query, null, null, false), ScalarCoercion.JSON)
+        }
+
+        assertNotNull(result)
+        assertNull(result["errors"])
+        assertNotNull(result["data"])
+        assertEquals("{orgs=[{id=w29yZwEL, name=TheOrg, allEnums=[{id=w0lORAUp, name=TheIndustry}, {id=w0NPTQU3, name=Big}, {id=w0NMSQVC, name=Very good, comments=Used for very good clients}]}, {id=w29yZwEs, name=TheCompany, allEnums=[{id=w0lORAUp, name=The Other Industry}]}]}", result["data"].toString())
     }
 }

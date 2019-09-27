@@ -367,8 +367,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val ann = baseClass.findAnnotation<GqlUnion>()
 
         val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        if (!validGraphQLName(name))
-            throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
+        check(validGraphQLName(name)) { "Name of $baseClass was determined to be $name, but that is not a valid GraphQL name" }
 
         val result = GUnionType(name)
         addBaseType(result)
@@ -387,7 +386,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         for (klass in impls)
             scanTypes(klass.nullableType(), false)
 
-        latentChecks.add({
+        latentChecks += {
             val gqlImpls = HashSet<GObjectType>()
             for (impl in impls) {
                 val gqlType = schema.getJavaType(impl.nullableType())?.gqlType
@@ -398,7 +397,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                 }
             }
             result.setMembers(gqlImpls)
-        })
+        }
 
         return javaType
     }
@@ -407,8 +406,12 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val scanResult = scanResult
 
         val toCheck = ArrayList<String>()
-        toCheck.addAll(scanResult.getNamesOfClassesImplementing(baseClass.java))
-        toCheck.addAll(scanResult.getNamesOfSubinterfacesOf(baseClass.java))
+        if (baseClass.java.isInterface) {
+            toCheck.addAll(scanResult.getNamesOfClassesImplementing(baseClass.java))
+            toCheck.addAll(scanResult.getNamesOfSubinterfacesOf(baseClass.java))
+        } else {
+            toCheck.addAll(scanResult.getNamesOfSubclassesOf(baseClass.java))
+        }
 
         val classList = HashSet(scanResult.classNamesToClassRefs(toCheck))
 

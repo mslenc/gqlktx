@@ -1,6 +1,7 @@
 package schema1
 
 import com.xs0.gqlktx.GqlField
+import com.xs0.gqlktx.GqlInterface
 import com.xs0.gqlktx.trimToNull
 import com.xs0.gqlktx.utils.Maybe
 import com.xs0.gqlktx.utils.NodeId
@@ -12,6 +13,7 @@ object Data {
     val users = LinkedHashMap<NodeId, User>()
     val posts = LinkedHashMap<NodeId, Post>()
     val tags = LinkedHashMap<NodeId, Tag>()
+    val orgs = LinkedHashMap<NodeId, Org>()
 
     fun add(user: User): User {
         users[user.id] = user
@@ -28,6 +30,11 @@ object Data {
         return tag
     }
 
+    fun add(org: Org): Org {
+        orgs[org.id] = org
+        return org
+    }
+
     init {
         val userA = add(User(1, "mslenc@gmail.com", null, null))
         val userB = add(User(2, "john@example.com", "John", null))
@@ -40,8 +47,22 @@ object Data {
         add(Post(3, "Second post ever", "With text this time :)", userB.id, setOf()))
         add(Post(8, "Third post", "Something old, something new", userC.id, setOf(tagNew.id, tagOld.id)))
         add(Post(9, "Final post", "Again, some text", userA.id, setOf(tagNew.id)))
+
+        val orgA = add(
+            Org(11, "TheOrg",
+                industry = Industry(EnumElementData(41, "TheIndustry", null, EnumElementType.INDUSTRY)),
+                size = CompanySize(EnumElementData(55, "Big", null, EnumElementType.COMPANY_SIZE)),
+                rating = ClientRating(EnumElementData(66, "Very good", "Used for very good clients", EnumElementType.CLIENT_RATING))
+            ))
+
+        val orgB = add(
+            Org(44, "TheCompany",
+                industry = Industry(EnumElementData(41, "The Other Industry", null, EnumElementType.INDUSTRY))
+            ))
     }
 }
+
+
 
 class ContextualString(val value: String)
 
@@ -59,11 +80,18 @@ object SchemaRoot {
 }
 
 object QueryRoot {
+    @GqlField
     val users: Collection<User>
         get() { return Data.users.values }
 
+    @GqlField
     fun getPosts(filters: PostFilters?): Collection<Post> {
         return Data.posts.values
+    }
+
+    @GqlField
+    fun getOrgs(): List<Org> {
+        return Data.orgs.values.toList()
     }
 
     @GqlField("tags")
@@ -139,3 +167,58 @@ class Post(
         return tagIds.map { Data.tags[it]!! }.toSet()
     }
 }
+
+class Org(
+    id: Int,
+    val name: String,
+    val industry: Industry? = null,
+    val size: CompanySize? = null,
+    val rating: ClientRating? = null
+) {
+    val id = NodeId.create("org").add(id).build()
+
+    @GqlField
+    fun getAllEnums(): List<EnumElement> {
+        return listOfNotNull(industry, size, rating)
+    }
+}
+
+enum class EnumElementType {
+    INDUSTRY,
+    COMPANY_SIZE,
+    CLIENT_RATING
+}
+
+data class EnumElementData(
+    val id: Long,
+    val name: String,
+    val comments: String?,
+    val type: EnumElementType
+) {
+    companion object {
+        fun createWrapper(data: EnumElementData): EnumElement {
+            return when (data.type) {
+                EnumElementType.INDUSTRY -> Industry(data)
+                EnumElementType.COMPANY_SIZE -> CompanySize(data)
+                EnumElementType.CLIENT_RATING -> ClientRating(data)
+            }
+        }
+    }
+}
+
+@GqlInterface
+abstract class EnumElement(internal val data: EnumElementData) {
+    @GqlField
+    val id = NodeId.create(data.type.toString().substring(0, 3)).add(data.id).build()
+
+    @GqlField
+    fun getName(): String = data.name
+}
+
+class Industry(data: EnumElementData) : EnumElement(data)
+class CompanySize(data: EnumElementData) : EnumElement(data)
+class ClientRating(data: EnumElementData) : EnumElement(data) {
+    @GqlField
+    fun getComments() = data.comments
+}
+
