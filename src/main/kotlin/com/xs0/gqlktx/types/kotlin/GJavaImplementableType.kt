@@ -12,8 +12,4 @@ abstract class GJavaImplementableType<CTX> protected constructor(type: KType, gq
     override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Any {
         throw UnsupportedOperationException()
     }
-
-    override fun isNullAllowed(): Boolean {
-        throw UnsupportedOperationException()
-    }
 }
