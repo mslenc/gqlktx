@@ -1,7 +1,6 @@
 package com.xs0.gqlktx
 
 import com.xs0.gqlktx.dom.Value
-import mu.KLogging
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CompletableFuture
 import kotlin.coroutines.suspendCoroutine
@@ -96,8 +95,6 @@ class FieldGetterCoroutine<in CTX>(
             }
         }
     }
-
-    companion object : KLogging()
 }
 
 

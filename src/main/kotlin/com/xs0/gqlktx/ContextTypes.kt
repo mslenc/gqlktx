@@ -13,7 +13,7 @@ fun <CTX: Any> findContextTypes(ctx: KClass<CTX>): ContextTypes<CTX> {
         if (ignoreContextFunc(member, ctx))
             continue
 
-        val invokable: SyncInvokable<CTX> = when(member) {
+        val invokable: SyncInvokable<CTX> = when (member) {
             is KFunction -> SyncInvokableFunction(
                     member.returnType,
                     member.name,

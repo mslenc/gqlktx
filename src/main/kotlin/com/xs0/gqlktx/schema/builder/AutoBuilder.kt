@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.schema.builder
 
+import com.github.mslenc.utils.getLogger
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.Schema
@@ -16,7 +17,6 @@ import java.util.*
 
 import com.xs0.gqlktx.schema.builder.TypeKind.*
 import com.xs0.gqlktx.utils.NodeId
-import mu.KLogging
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -570,7 +570,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         }
     }
 
-    companion object : KLogging() {
+    companion object {
+        val logger = getLogger<AutoBuilder<*,*>>()
+
         internal fun resolveName(klass: KClass<*>): String {
             val simpleName = klass.simpleName ?: throw IllegalArgumentException("Can't use anonymous classes")
 

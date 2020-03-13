@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.exec
 
+import com.github.mslenc.utils.getLogger
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.parser.GraphQLParser
@@ -18,8 +19,6 @@ import com.xs0.gqlktx.dom.OpType.MUTATION
 import com.xs0.gqlktx.dom.OpType.QUERY
 import com.xs0.gqlktx.types.kotlin.lists.GJavaBooleanArrayType
 import kotlinx.coroutines.*
-import mu.KLogging
-import org.slf4j.LoggerFactory
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import kotlin.reflect.KCallable
@@ -32,7 +31,7 @@ interface QueryExecutor {
 }
 
 object SimpleQueryExecutor : QueryExecutor {
-    private val log = LoggerFactory.getLogger(SimpleQueryExecutor::class.java)
+    private val log = getLogger<SimpleQueryExecutor>()
 
     override suspend fun <SCHEMA: Any, CTX>
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
@@ -41,7 +40,7 @@ object SimpleQueryExecutor : QueryExecutor {
 
         if (log.isInfoEnabled) {
             val endedAt = System.currentTimeMillis()
-            log.info("Query took {} ms", endedAt - startedAt)
+            log.info("Query took ${ endedAt - startedAt } ms")
         }
 
         return result
@@ -575,7 +574,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
         this.query = GraphQLParser.parseQueryDoc(rawQuery)
     }
 
-    companion object : KLogging()
+    companion object {
+        val logger = getLogger<SimpleQueryState<*,*>>()
+    }
 }
 
 
