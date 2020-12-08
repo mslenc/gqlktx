@@ -11,12 +11,12 @@ buildscript {
 
 plugins {
     id("java-library")
-    id("org.jetbrains.kotlin.jvm") version "1.3.70"
+    id("org.jetbrains.kotlin.jvm") version "1.4.20"
     id("maven-publish")
 }
 
 group = "com.github.mslenc"
-version = "0.12.0"
+version = "0.13.0"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -32,11 +32,11 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.mslenc:utilsktx:1.0.0")
+    implementation("com.github.mslenc:utilsktx:1.1.0")
 
     implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("reflect"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.2")
 
     // https://mvnrepository.com/artifact/io.github.lukehutch/fast-classpath-scanner
     implementation("io.github.lukehutch:fast-classpath-scanner:2.21")
