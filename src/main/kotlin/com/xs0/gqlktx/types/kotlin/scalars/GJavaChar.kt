@@ -1,45 +1,31 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
 import com.xs0.gqlktx.ScalarCoercion
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.codegen.BaselineExporter
+import com.xs0.gqlktx.codegen.BaselineInputParser
 import com.xs0.gqlktx.dom.Value
-import com.xs0.gqlktx.dom.ValueString
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
 import kotlin.reflect.KType
 
-class GJavaChar<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
+data class GJavaChar<CTX: Any>(override val type: KType, override val gqlType: GType) : GJavaScalarLikeType<CTX>() {
     init {
+        checkGqlType()
+
         if (type.classifier != Char::class)
             throw IllegalArgumentException("Not a char type: $type")
     }
 
+    override val name = ResolvedName.forBaseline(gqlType.kind != TypeKind.NON_NULL, "Char", null, "String")
+
     override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Char {
-        if (value !is ValueString)
-            throw ValidationException("Expected a character (one char string), but got something else")
-
-        val str = value.value
-
-        // this would be far more i18n-ready, if we took a full codepoint.. but Java char is
-        // not a full codepoint, so things wouldn't work..
-        if (str.length > 1)
-            throw ValidationException("Expected a character, but received a multi-char string")
-        if (str.isEmpty())
-            throw ValidationException("Expected a character, but received an empty string")
-
-        return str[0]
+        return BaselineInputParser.parseCharNotNull(value, inputVarParser.inputVariables)
     }
 
     override fun toJson(result: Any, coercion: ScalarCoercion): Any {
-        return when(coercion) {
-            ScalarCoercion.STRICT_JSON,
-            ScalarCoercion.JSON,
-            ScalarCoercion.SPREADSHEET ->
-                result.toString()
-
-            ScalarCoercion.NONE ->
-                result
-        }
+        return BaselineExporter.exportCharNotNull(result as Char, coercion)
     }
 }

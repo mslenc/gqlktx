@@ -1,0 +1,51 @@
+        {% for field in fields %}
+            "{{ field.name }}" -> {
+                {% if (field.getterMode == "METHOD") or (not type.concurrent and field.getterMode == "SUSPEND_METHOD") %}
+                    val value = try {
+                        {% include "output/runFieldGetter" %}
+                    } catch (e: Exception) {
+                        state.handleException(e, parentPath.subField(fieldName))
+                        null
+                    }
+
+                    {% if (field.nullable) %}
+                    jsonResult[responseKey] = value
+                    {% else %}
+                    if (value != null) {
+                        jsonResult[responseKey] = value
+                    } else {
+                        throw FieldException("Couldn't follow schema due to child error", parentPath)
+                    }
+                    {% endif %}
+
+                {% elseif field.getterMode == "SUSPEND_METHOD" %}
+                    {% if not type.splitFields %}
+                    if (futures == null) futures = ArrayList()
+                    {% endif %}
+                    jsonResult[responseKey] = null
+                    futures += async(start = CoroutineStart.UNDISPATCHED) {
+                        val value = try {
+                            {% include "output/runFieldGetter" %}
+                        } catch (e: Exception) {
+                            state.handleException(e, parentPath.subField(fieldName))
+                            null
+                        }
+
+                        {% if (field.nullable) %}
+                        responseKey to value
+                        {% else %}
+                        if (value != null) {
+                            responseKey to value
+                        } else {
+                            throw FieldException("Couldn't follow schema due to child error", parentPath)
+                        }
+                        {% endif %}
+                    }
+
+                {% elseif field.getterMode == "COMP_FUTURE" %}
+
+                    {{ unsupported_getter_mode }}
+
+                {% endif %}
+            }
+        {% endfor %}

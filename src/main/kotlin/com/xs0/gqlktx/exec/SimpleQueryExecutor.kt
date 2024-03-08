@@ -26,14 +26,14 @@ import kotlin.reflect.full.createType
 import kotlin.reflect.full.isSuperclassOf
 
 interface QueryExecutor {
-    suspend fun <SCHEMA: Any, CTX>
+    suspend fun <SCHEMA: Any, CTX: Any>
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion = ScalarCoercion.JSON): Map<String, Any?>
 }
 
 object SimpleQueryExecutor : QueryExecutor {
     private val log = getLogger<SimpleQueryExecutor>()
 
-    override suspend fun <SCHEMA: Any, CTX>
+    override suspend fun <SCHEMA: Any, CTX: Any>
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
         val startedAt = System.currentTimeMillis()
         val result = SimpleQueryState(schema, rootObject, context, scalarCoercion, queryInput).executeRequest()
@@ -47,7 +47,7 @@ object SimpleQueryExecutor : QueryExecutor {
     }
 }
 
-internal class SimpleQueryState<SCHEMA: Any, CTX>(
+internal class SimpleQueryState<SCHEMA: Any, CTX: Any>(
         private val schema: Schema<SCHEMA, CTX>,
         private val rootObject: SCHEMA,
         private val context: CTX,
@@ -410,7 +410,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
             if (selection is SelectionField) {
                 val responseKey = selection.responseKey
-                groupedFields.computeIfAbsent(responseKey) { ArrayList() }.add(selection)
+                groupedFields.getOrPut(responseKey) { ArrayList() }.add(selection)
             } else if (selection is SelectionFragmentSpread) {
                 val fragmentSpreadName = selection.getFragmentName()
                 if (visitedFragments.contains(fragmentSpreadName))
@@ -478,9 +478,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX>(
 
         val importedValue = inputVarParser.parseVar(valueOrVar, GJavaBooleanArrayType.NULLABLE_BOOL_TYPE)
 
-        return when (importedValue) {
-            is Boolean -> importedValue
-            importedValue != null -> throw ValidationException("Variable valueOrVar.name should be a boolean")
+        return when {
+            importedValue is Boolean -> importedValue
+            importedValue != null -> throw ValidationException("Variable $$arg should be a boolean")
             else -> null
         }
     }

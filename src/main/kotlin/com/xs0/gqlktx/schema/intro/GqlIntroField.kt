@@ -18,11 +18,9 @@ class GqlIntroField(private val gField: GField) {
     val type: GqlIntroType
         get() = gField.type.introspector
 
-    // TODO
     val isDeprecated: Boolean
-        get() = false
+        get() = gField.deprecated
 
-    // TODO
     val deprecationReason: String?
-        get() = null
+        get() = gField.deprecationReason
 }

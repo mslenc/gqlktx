@@ -6,8 +6,8 @@ import com.xs0.gqlktx.types.kotlin.GJavaType
 
 import kotlin.reflect.KType
 
-class InputVarParser<CTX>(
-        private val inputVariables: Map<String, ValueOrNull>,
+class InputVarParser<CTX: Any>(
+        internal val inputVariables: Map<String, ValueOrNull>,
         private val schema: Schema<*, CTX>) {
 
     fun parseVar(valueOrVar: ValueOrVar, type: KType): Any? {

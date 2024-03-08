@@ -1,17 +1,26 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.codegen.*
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.schema.builder.nullableType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
+import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 
-class GJavaBooleanArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>(BooleanArray::class.createType(), gqlType, elementType) {
+data class GJavaBooleanArrayType<CTX: Any>(override val gqlType: GType, override val elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>() {
+    override val type: KType = BooleanArray::class.createType()
+
+    override val name = ResolvedName.forBaseline(gqlType.kind != TypeKind.NON_NULL, "BooleanArray")
+
     init {
+        checkGqlType()
+
         if ("[Boolean!]" != gqlType.gqlTypeString)
             throw IllegalStateException()
     }
@@ -33,14 +42,27 @@ class GJavaBooleanArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : 
     }
 
     override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): BooleanArray {
-        return BooleanArray(array.elements.size) { index ->
-            when (val element = array.elements[index]) {
-                is ValueBool -> element.value
-                is ValueNull -> throw ValidationException("Null encountered in list of non-null booleans")
-                is Variable -> inputVarParser.parseVar(element, NON_NULL_BOOL_TYPE) as Boolean
-                else -> throw ValidationException("A non-boolean encountered in list of non-null booleans")
-            }
-        }
+        return BaselineInputParser.parseBooleanArrayNotNull(array, inputVarParser.inputVariables)
+    }
+
+    override fun inputElementType(): GJavaType<CTX>? {
+        return null // we process the thing as a whole
+    }
+
+    override fun inputParseInfo(gen: CodeGen<*, CTX>): InputParseCodeGenInfo {
+        return BaselineInputParser.codeGenInfo(name, gen)
+    }
+
+    override fun outputExportInfo(gen: CodeGen<*, CTX>): OutputExportCodeGenInfo {
+        return BaselineExporter.codeGenInfo(name, gen)
+    }
+
+    override fun hasSubSelections(): Boolean {
+        return false
+    }
+
+    override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
+        return false
     }
 
     companion object {

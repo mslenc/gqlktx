@@ -4,7 +4,7 @@ import com.xs0.gqlktx.schema.intro.GqlIntroInputValue
 
 import java.util.ArrayList
 
-class GField(val name: String, val type: GType, val arguments: Map<String, GArgument>) {
+class GField(val name: String, val type: GType, val arguments: Map<String, GArgument>, val description: String?, val deprecated: Boolean, val deprecationReason: String?) {
 
     override fun toString(): String {
         val sb = StringBuilder()
@@ -29,10 +29,6 @@ class GField(val name: String, val type: GType, val arguments: Map<String, GArgu
         }
         sb.append(": ").append(type.gqlTypeString)
     }
-
-    // TODO
-    val description: String?
-        get() = null
 
     val argumentsForIntrospection: List<GqlIntroInputValue> by lazy {
         val res = ArrayList<GqlIntroInputValue>(arguments.size)

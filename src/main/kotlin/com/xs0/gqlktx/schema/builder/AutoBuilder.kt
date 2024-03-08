@@ -2,6 +2,7 @@ package com.xs0.gqlktx.schema.builder
 
 import com.github.mslenc.utils.getLogger
 import com.xs0.gqlktx.*
+import com.xs0.gqlktx.codegen.packageName
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.Schema
 import com.xs0.gqlktx.schema.intro.GqlIntroSchema
@@ -16,6 +17,7 @@ import kotlin.reflect.KType
 import java.util.*
 
 import com.xs0.gqlktx.schema.builder.TypeKind.*
+import com.xs0.gqlktx.schema.intro.GqlIntroEnumValue
 import com.xs0.gqlktx.utils.NodeId
 import java.math.BigDecimal
 import java.time.Instant
@@ -77,8 +79,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val existingType = schema.getBaseType(name)
         return if (existingType != null) {
             existingType as? GScalarType ?: throw IllegalStateException("Type $name already exists, but is not a scalar type")
-        } else schema.createScalarType(name, validator)
-
+        } else {
+            schema.createScalarType(name, validator)
+        }
     }
 
     protected fun maybeAdd(javaType: GJavaType<CTX>): GJavaType<CTX> {
@@ -238,7 +241,15 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         if (parsedType.isNotNull) {
             val nullableType = parsedType.nullableType()
             val innerType = constructWrappedTypes(nullableType, baseType)
-            val result = GJavaNotNullType(parsedType.sourceType, innerType, innerType.gqlType.notNull())
+            val name = ResolvedName(
+                gqlName = innerType.name.gqlName + "!",
+                imports = innerType.name.imports,
+                codeGenFunName = "NotNullOf" + innerType.name.codeGenFunName,
+                codeGenTypeNN = innerType.name.codeGenTypeNN,
+                codeGenTypeExNN = innerType.name.codeGenTypeExNN,
+                isNullableType = false,
+            )
+            val result = GJavaNotNullType(name, parsedType.sourceType, innerType, innerType.gqlType.notNull())
             add(result)
             return result
         }
@@ -306,14 +317,14 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     private fun buildInterface(baseClass: KClass<*>): GJavaInterfaceType<CTX> {
         val ann = baseClass.findAnnotation<GqlInterface>()
 
-        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        if (!validGraphQLName(name))
-            throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
+        val name = resolveName(baseClass, ann?.name.trimToNull())
+        if (!validGraphQLName(name.gqlName))
+            throw IllegalStateException("Name of $baseClass was determined to be ${ name.gqlName }, but that is not a valid GraphQL name")
 
         val fields = scanOutputMethods(baseClass)
         val gqlFields = LinkedHashMap<String, GField>()
 
-        val gtype = GInterfaceType(name, gqlFields)
+        val gtype = GInterfaceType(name.gqlName, gqlFields, ann?.description?.trimToNull())
         addBaseType(gtype)
 
         val impls: Array<KClass<*>>
@@ -323,7 +334,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             impls = findImplementations(baseClass)
         }
 
-        val result = GJavaInterfaceType<CTX>(baseClass.nullableType(), gtype, impls)
+        val result = GJavaInterfaceType<CTX>(name, baseClass.nullableType(), gtype, impls.toList())
         add(result)
 
         continueScanningFields(baseClass, fields)
@@ -332,10 +343,13 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             scanTypes(impl.nullableType(), false)
 
         latentChecks.add({
-            val gqlImpls = HashSet<GObjectType>()
+            val gqlImpls = HashSet<GFieldedType>()
             for (impl in impls) {
                 val gqlType = schema.getJavaType(impl)?.gqlType ?: throw IllegalStateException("Missing info for $impl")
                 if (gqlType is GObjectType) {
+                    gqlImpls.add(gqlType)
+                } else
+                if (gqlType is GInterfaceType) {
                     gqlImpls.add(gqlType)
                 } else {
                     throw SchemaException("An implementation of " + gtype.gqlTypeString + " (" + impl + ") does not have an object type, but is " + gqlType.gqlTypeString)
@@ -366,10 +380,10 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     private fun buildUnion(baseClass: KClass<*>): GJavaUnionType<CTX> {
         val ann = baseClass.findAnnotation<GqlUnion>()
 
-        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        check(validGraphQLName(name)) { "Name of $baseClass was determined to be $name, but that is not a valid GraphQL name" }
+        val name = resolveName(baseClass, ann?.name.trimToNull())
+        check(validGraphQLName(name.gqlName)) { "Name of $baseClass was determined to be ${ name.gqlName }, but that is not a valid GraphQL name" }
 
-        val result = GUnionType(name)
+        val result = GUnionType(name.gqlName, ann?.description.trimToNull())
         addBaseType(result)
 
 
@@ -380,7 +394,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             impls = findImplementations(baseClass)
         }
 
-        val javaType = GJavaUnionType<CTX>(baseClass.nullableType(), result, impls)
+        val javaType = GJavaUnionType<CTX>(name, baseClass.nullableType(), result, impls.toList())
         add(javaType)
 
         for (klass in impls)
@@ -415,13 +429,25 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         val classList = HashSet(scanResult.classNamesToClassRefs(toCheck))
 
-        val posibs = scanResult.getNamesOfClassesWithAnnotation(GqlObject::class.java)
-        for (posib in scanResult.classNamesToClassRefs(posibs)) {
-            val ann = posib.getAnnotation(GqlObject::class.java)
-            if (ann != null && ann.implements.isNotEmpty()) {
-                for (i in ann.implements)
-                    if (i == baseClass)
-                        classList.add(posib)
+        scanResult.getNamesOfClassesWithAnnotation(GqlObject::class.java)?.let { posibs ->
+            for (posib in scanResult.classNamesToClassRefs(posibs)) {
+                val ann = posib.getAnnotation(GqlObject::class.java)
+                if (ann != null && ann.implements.isNotEmpty()) {
+                    for (i in ann.implements)
+                        if (i == baseClass)
+                            classList.add(posib)
+                }
+            }
+        }
+
+        scanResult.getNamesOfClassesWithAnnotation(GqlInterface::class.java)?.let { posibs ->
+            for (posib in scanResult.classNamesToClassRefs(posibs)) {
+                val ann = posib.getAnnotation(GqlInterface::class.java)
+                if (ann != null && ann.implements.isNotEmpty()) {
+                    for (i in ann.implements)
+                        if (i == baseClass)
+                            classList.add(posib)
+                }
             }
         }
 
@@ -431,11 +457,11 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
 
     private fun buildInputObject(baseClass: KClass<*>): GJavaInputObjectType<CTX> {
-        val ann = baseClass.findAnnotation<GqlInput>()
+        val ann = baseClass.findAnnotation<GqlInputObject>()
 
-        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        if (!validGraphQLName(name))
-            throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
+        val name = resolveName(baseClass, ann?.name.trimToNull())
+        if (!validGraphQLName(name.gqlName))
+            throw IllegalStateException("Name of $baseClass was determined to be ${ name.gqlName }, but that is not a valid GraphQL name")
 
         val reflected = try {
             reflectInputObject(baseClass)
@@ -443,11 +469,11 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             throw IllegalStateException("Failed to reflect on $baseClass", e)
         }
 
-        val gqlFields = LinkedHashMap<String, GField>()
+        val gqlFields = LinkedHashMap<String, GInputField>()
 
-        val gtype = GInputObjType(name, gqlFields)
+        val gtype = GInputObjType(name.gqlName, gqlFields, ann?.description.trimToNull())
         addBaseType(gtype)
-        val result = GJavaInputObjectType<CTX>(baseClass.nullableType(), gtype, reflected)
+        val result = GJavaInputObjectType<CTX>(name, baseClass.nullableType(), gtype, reflected)
         add(result)
 
         for (propInfo in reflected.props)
@@ -457,7 +483,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             for (propInfo in reflected.props) {
                 val type = schema.getJavaType(propInfo.type.sourceType)?.gqlType ?: throw IllegalStateException("Didn't find it")
 
-                gqlFields[propInfo.name] = GField(propInfo.name, type, emptyMap())
+                gqlFields[propInfo.name] = GInputField(propInfo.name, type, propInfo.defaultValue, propInfo.description)
             }
         }
 
@@ -467,17 +493,17 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     private fun buildObject(baseClass: KClass<*>): GJavaObjectType<CTX> {
         val ann = baseClass.findAnnotation<GqlObject>()
 
-        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        if (!validGraphQLName(name))
-            throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
+        val name = resolveName(baseClass, ann?.name.trimToNull())
+        if (!validGraphQLName(name.gqlName))
+            throw IllegalStateException("Name of $baseClass was determined to be ${ name.gqlName }, but that is not a valid GraphQL name")
 
         val javaFields = scanOutputMethods(baseClass)
 
         val gqlFields = LinkedHashMap<String, GField>()
-        val gtype = GObjectType(name, gqlFields)
+        val gtype = GObjectType(name.gqlName, gqlFields, ann?.description?.trimToNull())
         addBaseType(gtype)
 
-        val result = GJavaObjectType(baseClass.nullableType(), gtype, javaFields)
+        val result = GJavaObjectType(name, baseClass.nullableType(), gtype, javaFields)
         add(result)
 
         continueScanningFields(baseClass, javaFields)
@@ -495,20 +521,20 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             for ((_, p) in omi.publicParams) {
                 val argType = schema.getJavaType(p.type.sourceType) ?: throw IllegalStateException("Couldn't find it")
 
-                val arg = GArgument(p.name, argType.gqlType, p.defaultValue)
+                val arg = GArgument(p.name, argType.gqlType, p.defaultValue, p.description)
                 arguments[arg.name] = arg
             }
 
-            gqlFields[key] = GField(key, type, arguments)
+            gqlFields[key] = GField(key, type, arguments, omi.description, omi.isDeprecated, omi.deprecationReason)
         }
     }
 
     private fun buildEnum(baseClass: KClass<*>): GJavaType<CTX> {
         val ann = baseClass.findAnnotation<GqlEnum>()
 
-        val name: String = ann?.name.trimToNull() ?: resolveName(baseClass)
-        if (!validGraphQLName(name))
-            throw IllegalStateException("Name of $baseClass was determined to be $name, but that is not a valid GraphQL name")
+        val name = resolveName(baseClass, ann?.name.trimToNull())
+        if (!validGraphQLName(name.gqlName))
+            throw IllegalStateException("Name of $baseClass was determined to be ${ name.gqlName }, but that is not a valid GraphQL name")
 
         if (Enum::class.isSuperclassOf(baseClass)) {
             if (baseClass == Enum::class) {
@@ -516,21 +542,19 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
                 throw IllegalStateException("Can't use the abstract java.lang.Enum class")
             }
 
-            return buildStandardEnum(name, baseClass)
+            return buildStandardEnum(name, baseClass, ann?.description?.trimToNull())
         } else {
             throw UnsupportedOperationException("Custom enum-like classes are not supported yet")
         }
     }
 
-    protected fun buildStandardEnum(name: String, enumClass: KClass<*>): GJavaStandardEnum<CTX> {
+    protected fun buildStandardEnum(name: ResolvedName, enumClass: KClass<*>, description: String?): GJavaStandardEnum<CTX> {
         val values = getEnumValues(enumClass)
 
-        val valuesByName = values.associateBy { it.name }
-
-        val enumType = GEnumType(name, LinkedHashSet(valuesByName.keys))
+        val enumType = GEnumType(name.gqlName, values, description)
         addBaseType(enumType)
 
-        val result = GJavaStandardEnum<CTX>(enumClass.nullableType(), enumType, valuesByName)
+        val result = GJavaStandardEnum<CTX>(name, enumClass.nullableType(), enumType, values)
         add(result)
         return result
     }
@@ -573,23 +597,89 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     companion object {
         val logger = getLogger<AutoBuilder<*,*>>()
 
-        internal fun resolveName(klass: KClass<*>): String {
+        internal fun resolveName(klass: KClass<*>, gqlNameOverride: String?): ResolvedName {
             val simpleName = klass.simpleName ?: throw IllegalArgumentException("Can't use anonymous classes")
 
             if (klass.java.isMemberClass) {
-                return resolveName(klass.java.declaringClass.kotlin) + simpleName
+                val outer = resolveName(klass.java.declaringClass.kotlin, null)
+
+                return ResolvedName(
+                    gqlName = gqlNameOverride ?: (outer.gqlName + simpleName),
+                    imports = outer.imports,
+                    codeGenFunName = outer.codeGenFunName + simpleName,
+                    codeGenTypeNN = outer.codeGenTypeNN + "." + simpleName,
+                    isNullableType = true,
+                )
             } else {
-                return simpleName
+                val packName = klass.packageName() ?: throw IllegalStateException("Missing package for $klass")
+                return ResolvedName(
+                    gqlName = gqlNameOverride ?: simpleName,
+                    imports = setOf(packName to simpleName),
+                    codeGenFunName = simpleName,
+                    codeGenTypeNN = simpleName,
+                    isNullableType = true,
+                )
             }
         }
 
-        protected fun getEnumValues(enumClass: KClass<*>): Array<out Enum<*>> {
+        protected fun getEnumValues(enumClass: KClass<*>): List<GqlIntroEnumValue> {
             @Suppress("UNCHECKED_CAST")
-            return enumClass.java.getMethod("values").invoke(null) as Array<out Enum<*>>
+            val rawValues = enumClass.java.getMethod("values").invoke(null) as Array<out Enum<*>>
+
+            return rawValues.map {
+                val field = enumClass.java.getField(it.name)
+                val enumAnn = field.getAnnotation(GqlEnumValue::class.java)
+                val depAnn = field.getAnnotation(GqlDeprecated::class.java)
+
+                GqlIntroEnumValue(
+                    name = enumAnn?.name.trimToNull() ?: it.name,
+                    description = enumAnn?.description.trimToNull(),
+                    isDeprecated = depAnn != null,
+                    deprecationReason = depAnn?.reason.trimToNull(),
+                    it,
+                    enumClass,
+                )
+            }
         }
 
         fun <SCHEMA: Any, CTX: Any> build(schema: KClass<SCHEMA>, contextType: KClass<CTX>): Schema<SCHEMA, CTX> {
             return AutoBuilder(schema, contextType).build()
+        }
+    }
+}
+
+data class ResolvedName(
+    val gqlName: String, // BubuCreateInput
+    val imports: Set<Pair<String, String>>, // could also include a CustomCollection + Maybe + Bubu
+    val codeGenFunName: String, // HashSetOfMaybeOfBubuCreateInput
+    val codeGenTypeNN: String, // HashSet<Maybe<BubuCreateInput>>
+    val isNullableType: Boolean,
+    val codeGenTypeExNN: String = codeGenTypeNN, // Set<Maybe<BubuCreateInput>>
+) {
+    val codeGenType = when (isNullableType) {
+        true -> codeGenTypeNN + "?"
+        else -> codeGenTypeNN
+    }
+
+    val codeGenTypeEx = when (isNullableType) {
+        true -> codeGenTypeExNN + "?"
+        else -> codeGenTypeExNN
+    }
+
+    companion object {
+        fun forBaseline(nullable: Boolean, javaType: String, importPackage: String? = null, gqlName: String = javaType): ResolvedName {
+            val imports = when {
+                importPackage != null -> setOf(importPackage to javaType)
+                else -> emptySet()
+            }
+
+            return ResolvedName(
+                gqlName = gqlName,
+                imports = imports,
+                codeGenFunName = javaType,
+                codeGenTypeNN = javaType,
+                isNullableType = nullable
+            )
         }
     }
 }

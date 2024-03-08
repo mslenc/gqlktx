@@ -1,20 +1,25 @@
 package com.xs0.gqlktx.types.kotlin.lists
 
-import com.xs0.gqlktx.ScalarUtils
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.codegen.*
 import com.xs0.gqlktx.dom.ValueList
-import com.xs0.gqlktx.dom.ValueNull
-import com.xs0.gqlktx.dom.ValueNumber
-import com.xs0.gqlktx.dom.Variable
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaListLikeType
 import com.xs0.gqlktx.types.kotlin.GJavaType
+import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 
-class GJavaIntArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>(IntArray::class.createType(), gqlType, elementType) {
+data class GJavaIntArrayType<CTX: Any>(override val gqlType: GType, override val elementType: GJavaType<CTX>) : GJavaListLikeType<CTX>() {
+    override val type: KType = IntArray::class.createType()
+
+    override val name = ResolvedName.forBaseline(gqlType.kind != TypeKind.NON_NULL, "IntArray")
+
     init {
+        checkGqlType()
+
         if ("[Int!]" != gqlType.gqlTypeString)
             throw IllegalStateException()
     }
@@ -36,14 +41,27 @@ class GJavaIntArrayType<CTX>(gqlType: GType, elementType: GJavaType<CTX>) : GJav
     }
 
     override fun transformFromJson(array: ValueList, inputVarParser: InputVarParser<CTX>): IntArray {
-        return IntArray(array.elements.size) { index ->
-            when (val element = array.elements[index]) {
-                is ValueNumber -> ScalarUtils.validateInteger(element)
-                is ValueNull -> throw ValidationException("Null encountered in list of non-null ints")
-                is Variable -> inputVarParser.parseVar(element, NON_NULL_INT_TYPE) as Int
-                else -> throw ValidationException("Something other than a number encountered in list of non-null ints")
-            }
-        }
+        return BaselineInputParser.parseIntArrayNotNull(array, inputVarParser.inputVariables)
+    }
+
+    override fun inputElementType(): GJavaType<CTX>? {
+        return null // we process the thing as a whole
+    }
+
+    override fun inputParseInfo(gen: CodeGen<*, CTX>): InputParseCodeGenInfo {
+        return BaselineInputParser.codeGenInfo(name, gen)
+    }
+
+    override fun outputExportInfo(gen: CodeGen<*, CTX>): OutputExportCodeGenInfo {
+        return BaselineExporter.codeGenInfo(name, gen)
+    }
+
+    override fun hasSubSelections(): Boolean {
+        return false
+    }
+
+    override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
+        return false
     }
 
     companion object {

@@ -1,0 +1,221 @@
+import com.xs0.gqlktx.FieldException
+import com.xs0.gqlktx.dom.Selection
+import com.xs0.gqlktx.dom.SelectionField
+import com.xs0.gqlktx.dom.SelectionFragmentSpread
+import com.xs0.gqlktx.dom.SelectionInlineFragment
+import com.xs0.gqlktx.exec.FieldPath
+import kotlinx.coroutines.*
+
+{% for type in types %}
+
+{% if type.kind == "OBJECT" %}
+
+private fun typesMatch{{ type.funName }}(typeName: String): Boolean {
+    return when (typeName) {
+        {% for stn in type.superTypeNames %}
+        "{{ stn }}" -> true
+        {% endfor %}
+        else -> false
+    }
+}
+
+private fun collectFields{{ type.funName }}(selectionSet: List<Selection>, visitedFragments: MutableSet<String>, out: LinkedHashMap<String, ArrayList<SelectionField>>, state: {{ stateType }}): Map<String, List<SelectionField>> {
+    for (selection in selectionSet) {
+        if (state.shouldSkip(selection))
+            continue
+
+        when (selection) {
+            is SelectionField -> {
+                out.getOrPut(selection.responseKey) { ArrayList() }.add(selection)
+            }
+
+            is SelectionFragmentSpread -> {
+                val fragmentSpreadName = selection.getFragmentName()
+                if (visitedFragments.contains(fragmentSpreadName))
+                    continue
+                visitedFragments.add(fragmentSpreadName)
+
+                val fragmentDef = state.fragmentsByName[fragmentSpreadName] ?: continue
+
+                if (typesMatch{{ type.funName }}(fragmentDef.type.name)) {
+                    collectFields{{ type.funName }}(fragmentDef.selectionSet, visitedFragments, out, state)
+                }
+            }
+
+            is SelectionInlineFragment -> {
+                val typeOpt = selection.typeConditionOpt
+                if (typeOpt == null || typesMatch{{ type.funName }}(typeOpt.name)) {
+                    collectFields{{ type.funName }}(selection.selectionSet, visitedFragments, out, state)
+                }
+            }
+        }
+    }
+
+    return out
+}
+
+{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {% if type.concurrent %}= supervisorScope {% endif %}{
+    if (obj == null)
+    {% if type.concurrent %}
+        return@supervisorScope null
+    {% else %}
+        return null
+    {% endif %}
+
+    val groupedFieldSet = collectFields{{ type.funName }}(selectionSet, HashSet(), LinkedHashMap(), state)
+
+    val jsonResult = LinkedHashMap<String, Any?>()
+
+    {% if type.concurrent %}
+        {% if type.splitFields %}
+    val futures = ArrayList<Deferred<Pair<String, Any?>>>()
+        {% else %}
+    var futures: ArrayList<Deferred<Pair<String, Any?>>>? = null
+        {% endif %}
+    {% endif %}
+
+    {% if type.anyNeedsCoercion %}
+    val coercion = state.coercion
+    {% endif %}
+
+    val variables = state.variables
+
+    nextField@
+    for ((responseKey: String, fields) in groupedFieldSet) {
+        val activeField = fields[0]
+        when (val fieldName = activeField.fieldName) {
+            "__typename" -> {
+                jsonResult[responseKey] = "{{ type.gqlName }}"
+            }
+
+            {% if type.isQueryRoot %}
+            "__schema" -> {
+                val subSelection = state.mergeSelectionSets(fields)
+                jsonResult[responseKey] = state.handleSchemaQuery(subSelection)
+            }
+
+            "__type" -> {
+                val name = activeField.arguments["name"]?.let { BaselineInputParser.parseStringNotNull(it, variables) } ?: throw FieldException("Missing value for name", parentPath.subField(fieldName))
+                jsonResult[responseKey] = state.handleTypeByNameQuery(name, state.mergeSelectionSets(fields))
+            }
+            {% endif %}
+
+            {% if type.splitFields %}
+            else -> {
+                when {
+                    {% for chunk in type.fieldChunks %}
+                    fieldName <= "{{ chunk.last }}" -> executeGQL{{ type.funName }}_{{ chunk.i }}(jsonResult, responseKey, fields, obj, parentPath, state{% if type.concurrent %}, futures{% endif %})
+                    {% endfor %}
+                }
+            }
+            {% else %}
+                {% include "output/generateFields" with { "fields": type.fields } %}
+            {% endif %}
+        }
+    }
+
+    {% if type.concurrent %}
+        {% if type.splitFields %}
+    if (futures.isNotEmpty()) {
+        {% else %}
+    if (futures != null) {
+        {% endif %}
+        try {
+            val results = futures.awaitAll()
+            for ((key, value) in results) {
+                jsonResult[key] = value
+            }
+        } catch (e: Throwable) {
+            state.handleException(e, parentPath)
+            return@supervisorScope null
+        }
+    }
+
+    jsonResult
+    {% else %}
+    return jsonResult
+    {% endif %}
+}
+
+{% if type.splitFields %}
+    {% for chunk in type.fieldChunks %}
+private {% if type.suspending %}suspend {% endif %}fun {% if type.concurrent %}CoroutineScope.{% endif %}executeGQL{{ type.funName }}_{{ chunk.i }}(jsonResult: LinkedHashMap<String, Any?>, responseKey: String, fields: List<SelectionField>, obj: {{ type.typeNameNN }}, parentPath: FieldPath, state: {{ stateType }}{% if type.concurrent %}, futures: ArrayList<Deferred<Pair<String, Any?>>>{%endif%}) {
+
+    {% if type.anyNeedsCoercion %}
+    val coercion = state.coercion
+    {% endif %}
+
+    val variables = state.variables
+
+    val activeField = fields[0]
+    when (val fieldName = activeField.fieldName) {
+        {% include "output/generateFields" with { "fields": chunk.fields } %}
+    }
+}
+    {% endfor %}
+{% endif %}
+
+{% elseif type.kind == "NOT_NULL" %}
+
+{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return {{ type.innerExpr }} ?: throw NullPointerException("executeGQL{{ type.funName }}")
+}
+
+{% elseif type.kind == "ARRAY_OF" %}
+
+{% if type.suspending %}
+
+suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
+    if (obj == null)
+        return@supervisorScope null
+
+    obj.mapIndexed { i, el ->
+        async(start = CoroutineStart.UNDISPATCHED) {
+            {{ type.innerExpr }}
+        }
+    }.awaitAll()
+}
+
+{% else %}
+
+fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return obj?.mapIndexed { i, el ->
+        {{ type.innerExpr }}
+    }
+}
+
+{% endif %}
+
+{% elseif type.kind == "COLLECTION_OF" %}
+
+{% if type.suspending %}
+
+suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
+    if (obj == null)
+        return@supervisorScope null
+
+    obj.mapIndexed { i, el ->
+        async(start = CoroutineStart.UNDISPATCHED) {
+            {{ type.innerExpr }}
+        }
+    }.awaitAll()
+}
+
+
+{% else %}
+
+fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return obj?.mapIndexed { i, el ->
+        {{ type.innerExpr }}
+    }
+}
+
+{% endif %}
+
+{% else %}
+
+{{ missing_kind_support }}
+
+{% endif %}
+
+{% endfor %}

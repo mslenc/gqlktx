@@ -126,7 +126,9 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
     if (member.findAnnotation<GqlIgnore>() != null)
         return null
 
-    val forced = member.findAnnotation<GqlField>() != null
+    val fieldAnn = member.findAnnotation<GqlField>()
+    val depAnn = member.findAnnotation<GqlDeprecated>()
+    val forced = fieldAnn != null
 
     val thisParam = member.instanceParameter ?: member.extensionReceiverParameter
     if (thisParam != null) {
@@ -176,12 +178,10 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
         params += parsedParam
 
-        val parsedDefault: Value? =
-            param.findAnnotation<GqlParam>()?.let { ann ->
-                ann.defaultsTo.trimToNull()?.let { defaultValue ->
-                    GraphQLParser.parseValue(defaultValue)
-                }
-            }
+        val paramAnn = param.findAnnotation<GqlParam>()
+        val parsedDefault: Value? = paramAnn?.defaultsTo.trimToNull()?.let {
+            GraphQLParser.parseValue(it)
+        }
 
         when (parsedParam.kind) {
             ParamKind.THIS,
@@ -191,7 +191,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
             }
 
             ParamKind.PUBLIC -> {
-                publicParams[parsedParam.name] = PublicParamInfo(parsedParam.name, parsedParam.semiType!!, parsedDefault)
+                publicParams[parsedParam.name] = PublicParamInfo(parsedParam.name, parsedParam.semiType!!, parsedDefault, paramAnn?.description.trimToNull())
             }
 
             ParamKind.CONTINUATION -> throw Error("continuation became visible")
@@ -208,10 +208,14 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
     val paramArray = params.toTypedArray()
 
+    val desc = fieldAnn?.description?.trimToNull()
+    val deprecated = depAnn != null
+    val depReason = depAnn?.reason?.trimToNull()
+
     return when {
-        isSuspend -> FieldGetterCoroutine(parsedRetType, name, member, paramArray, publicParams)
-        isFuture -> FieldGetterCompletableFuture(parsedRetType, name, member, paramArray, publicParams)
-        else -> FieldGetterRegularFunction(parsedRetType, name, member, paramArray, publicParams)
+        isSuspend -> FieldGetterCoroutine(parsedRetType, name, member, paramArray, publicParams, desc, deprecated, depReason)
+        isFuture -> FieldGetterCompletableFuture(parsedRetType, name, member, paramArray, publicParams, desc, deprecated, depReason)
+        else -> FieldGetterRegularFunction(parsedRetType, name, member, paramArray, publicParams, desc, deprecated, depReason)
     }
 }
 

@@ -16,7 +16,8 @@ class InputPropInfo(
     val name: String,
     val propMode: PropMode,
     val type: SemiType,
-    val defaultValue: Value?
+    val defaultValue: Value?,
+    val description: String?,
 )
 
 class ReflectedInput(
@@ -51,6 +52,8 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
             GraphQLParser.parseValue(it)
         }
 
+        val description = ann?.description.trimToNull()
+
         val type = SemiType.create(param.type) ?: throw IllegalStateException("Type of $param is unusable at this time")
 
         val name = ann?.name.trimToNull() ?: param.name ?: throw IllegalStateException("Couldn't determine name of $param")
@@ -64,7 +67,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
             else -> PropMode.REQUIRED
         }
 
-        props.add(InputPropInfo(name, propMode, type, defaultValue))
+        props.add(InputPropInfo(name, propMode, type, defaultValue, description))
         namesSeen.add(name)
     }
 

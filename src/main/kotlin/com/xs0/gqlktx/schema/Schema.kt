@@ -13,11 +13,11 @@ import java.util.TreeMap
 import kotlin.reflect.KType
 import kotlin.reflect.full.createType
 
-class Schema<SCHEMA, CTX>(
+class Schema<SCHEMA, CTX: Any>(
         val queryRoot: SyncInvokable<SCHEMA>,
         val mutationRoot: SyncInvokable<SCHEMA>?,
-        private val types: Map<KType, GJavaType<CTX>>,
-        private val baseTypes: Map<String, GBaseType>) {
+        internal val types: Map<KType, GJavaType<CTX>>,
+        internal val baseTypes: Map<String, GBaseType>) {
 
     internal val INTRO_SCHEMA: FieldGetter<CTX>
     internal val INTRO_TYPE: FieldGetter<CTX>
@@ -26,30 +26,33 @@ class Schema<SCHEMA, CTX>(
     init {
         try {
             INTRO_SCHEMA = FieldGetterRegularFunction(
-                    SemiType.create(GqlIntroSchema::class.createType(nullable=false)) ?: throw Error("Couldn't process __schema type"),
-                    "__schema",
-                    GqlIntroSchema::class.findMethod("self"),
-                    arrayOf(ParamInfo(ParamKind.THIS)),
-                    emptyMap()
+                SemiType.create(GqlIntroSchema::class.createType(nullable=false)) ?: throw Error("Couldn't process __schema type"),
+                "__schema",
+                GqlIntroSchema::class.findMethod("self"),
+                arrayOf(ParamInfo(ParamKind.THIS)),
+                emptyMap(),
+                null, false, null
             )
 
             val nonNullString = SemiType.create(String::class.createType(nullable = false))!!
             val nameParam = ParamInfo<CTX>("name", nonNullString)
 
             INTRO_TYPE = FieldGetterRegularFunction(
-                    SemiType.create(GqlIntroType::class.createType(nullable=true)) ?: throw Error("Couldn't process __type"),
-                    "__type",
-                    GqlIntroSchema::class.findMethod("type"),
-                    arrayOf(ParamInfo(ParamKind.THIS), nameParam),
-                    mapOf("name" to PublicParamInfo("name", nonNullString, null))
+                SemiType.create(GqlIntroType::class.createType(nullable=true)) ?: throw Error("Couldn't process __type"),
+                "__type",
+                GqlIntroSchema::class.findMethod("type"),
+                arrayOf(ParamInfo(ParamKind.THIS), nameParam),
+                mapOf("name" to PublicParamInfo("name", nonNullString, null, null)),
+                null, false, null
             )
 
             INTRO_TYPENAME = FieldGetterRegularFunction(
-                    nonNullString,
-                    "__typename",
-                    Any::class.findMethod("toString"),
-                    arrayOf(ParamInfo(ParamKind.THIS)),
-                    emptyMap()
+                nonNullString,
+                "__typename",
+                Any::class.findMethod("toString"),
+                arrayOf(ParamInfo(ParamKind.THIS)),
+                emptyMap(),
+                null, false, null
             )
         } catch (e: Exception) {
             throw Error(e)

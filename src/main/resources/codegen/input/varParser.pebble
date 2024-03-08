@@ -1,0 +1,79 @@
+{% for type in types %}
+
+{% if type.kind == "MAYBE" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    return when (value) {
+        is Variable -> parse{{ type.funName }}(variables[value.name] ?: return null, variables)
+        else -> Maybe({{ type.innerExpr }})
+    }
+}
+{% elseif type.kind == "NOT_NULL" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    return {{ type.innerExpr }} ?: throw ValidationException("Null found where a value was expected.")
+}
+{% elseif type.kind == "ARRAY_OF" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    return when (value) {
+        is ValueList -> Array(value.elements.size) { i -> {{ type.innerExpr }} }
+        is ValueNull -> null
+        is Variable -> parse{{ type.funName }}(variables[value.name] ?: return null, variables)
+        else -> throw ValidationException("Expected a list, but found something else.")
+    }
+}
+{% elseif type.kind == "COLLECTION_OF" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    return when (value) {
+        is ValueList -> value.elements.mapTo({{ type.funCreateType }}()) { el -> {{ type.innerExpr }} }
+        is ValueNull -> null
+        is Variable -> parse{{ type.funName }}(variables[value.name] ?: return null, variables)
+        else -> throw ValidationException("Expected a list, but found something else.")
+    }
+}
+{% elseif type.kind == "ENUM" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    val s = when (value) {
+        is ValueEnum -> value.value
+        is ValueString -> if (value.token == null) value.value else throw ValidationException("The value should be an enum keyword, not a string")
+        is ValueNull -> return null
+        is Variable -> return parse{{ type.funName }}(variables[value.name] ?: return null, variables)
+        else -> throw ValidationException("Expected a string for enum, but got something else")
+    }
+
+    return when (s) {
+    {% for enumVal in type.enumValues %}
+        "{{ enumVal.publicName }}" -> {{ enumVal.value }}
+    {% endfor %}
+        else -> throw ValidationException("Unrecognized value " + s + " for enum {{ type.gqlName }}")
+    }
+}
+{% elseif type.kind == "INPUT_OBJECT" %}
+fun parse{{ type.funName }}(value: ValueOrVar, variables: Map<String, ValueOrNull>): {{ type.funReturnType }} {
+    return when (value) {
+        is ValueObject -> {
+            {{ type.funCreateType }}(
+                {% for param in type.params %}
+                    {% if param.mode == "REQUIRED" %}
+                        {% if param.hasDefault %}
+                {{ param.name }} = (value.elements["{{ param.name }}"] ?: {{ param.defaultValue }}).let { v -> {{ param.parseExpr }} },
+                        {% else %}
+                {{ param.name }} = (value.elements["{{ param.name }}"] ?: throw ValidationException("Missing parameter {{ param.name }} for {{ type.gqlName }}")).let { v -> {{ param.parseExpr }} },
+                        {% endif %}
+                    {% else %}
+                        {% if param.hasDefault %}
+                {{ param.name }} = (value.elements["{{ param.name }}"] ?: {{ param.defaultValue }}).let { v -> {{ param.parseExpr }} },
+                        {% else %}
+                {{ param.name }} = (value.elements["{{ param.name }}"])?.let { v -> {{ param.parseExpr }} },
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            )
+        }
+        is ValueNull -> null
+        is Variable -> parse{{ type.funName }}(variables[value.name] ?: return null, variables)
+        else -> throw ValidationException("Expected an input object, but got something else")
+    }
+}
+{% endif %}
+
+{% endfor %}
+

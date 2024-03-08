@@ -7,16 +7,10 @@ import com.xs0.gqlktx.schema.intro.GqlIntroType
 
 import java.util.*
 
-class GObjectType(name: String, fields: Map<String, GField>) : GFieldedType(name, fields) {
-    private var interfaces: MutableSet<GInterfaceType> = LinkedHashSet()
+class GObjectType(name: String, fields: Map<String, GField>, description: String?) : GFieldedType(name, fields, description) {
 
     override val kind: TypeKind
         get() = TypeKind.OBJECT
-
-    override val validAsArgumentType: Boolean
-        get() {
-            return false
-        }
 
     override fun coerceValue(raw: Value): Value {
         throw QueryException("Object type $name can't be used as a variable")
@@ -26,7 +20,7 @@ class GObjectType(name: String, fields: Map<String, GField>) : GFieldedType(name
         sb.append("type ").append(name)
 
         var first = true
-        for (i in interfaces) {
+        for (i in getInterfaces()) {
             sb.append(if (first) " implements " else ", ")
             first = false
             sb.append(i.name)
@@ -37,13 +31,9 @@ class GObjectType(name: String, fields: Map<String, GField>) : GFieldedType(name
         sb.append("}\n")
     }
 
-    internal fun addInterface(interfaceType: GInterfaceType) {
-        interfaces.add(interfaceType)
-    }
-
     val interfacesForIntrospection: List<GqlIntroType> by lazy {
-        val res = ArrayList<GqlIntroType>(interfaces.size)
-        for (inter in interfaces)
+        val res = ArrayList<GqlIntroType>(getInterfaces().size)
+        for (inter in getInterfaces())
             res.add(inter.introspector)
         res
     }

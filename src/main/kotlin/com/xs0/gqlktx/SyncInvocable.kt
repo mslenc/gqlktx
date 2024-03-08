@@ -10,6 +10,7 @@ interface SyncInvokable<in CTX> {
     val name: String
     val nullable: Boolean
     fun invoke(ctx: CTX): Any?
+    fun codeGen(ctxExpr: String): String
 }
 
 class SyncInvokableFunction<in CTX>(
@@ -24,6 +25,14 @@ class SyncInvokableFunction<in CTX>(
             function.call()
         } else {
             function.call(ctx)
+        }
+    }
+
+    override fun codeGen(ctxExpr: String): String {
+        if (ignoreCtx) {
+            return function.name + "()"
+        } else {
+            return ctxExpr + "." + function.name + "()"
         }
     }
 
@@ -42,6 +51,10 @@ class SyncInvokableUnboundProperty<in CTX>(
         return property.get()
     }
 
+    override fun codeGen(ctxExpr: String): String {
+        return property.name // ???
+    }
+
     override fun toString(): String {
         return "InvokableUnboundProperty($property)"
     }
@@ -55,6 +68,10 @@ class SyncInvokableBoundProperty<in CTX>(
 ) : SyncInvokable<CTX> {
     override fun invoke(ctx: CTX): Any? {
         return property.get(ctx)
+    }
+
+    override fun codeGen(ctxExpr: String): String {
+        return ctxExpr + "." + property.name
     }
 
     override fun toString(): String {

@@ -1,0 +1,17 @@
+object {{ introDataType }} : JsonIntroData("{{ packageName }}", "{{ schemaName }}") {
+    override fun getQueryTypeName(): String {
+        return "{{ queryTypeName }}"
+    }
+
+    override fun getMutationTypeName(): String? {
+        {% if mutationTypeName is not null %}
+        return "{{ mutationTypeName }}"
+        {% else %}
+        return null
+        {% endif %}
+    }
+
+    override fun getSubscriptionTypeName(): String? {
+        return null
+    }
+}

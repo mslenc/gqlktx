@@ -28,7 +28,7 @@ class SchemaBuilder<SCHEMA: Any, CTX: Any>(
      * @return the new type
      */
     fun createScalarType(name: String, varValueValidator: (Value)->Any): GScalarType {
-        return addBaseType(GScalarType(name, varValueValidator))
+        return addBaseType(GScalarType(name, varValueValidator, null))
     }
 
     /**

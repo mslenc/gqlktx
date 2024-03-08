@@ -1,12 +1,15 @@
+buildscript {
+    ext.jackson_version = '2.14.1'
+}
 
 plugins {
     id "java-library"
-    id "org.jetbrains.kotlin.jvm" version "1.7.22"
+    id "org.jetbrains.kotlin.jvm" version "1.9.22"
     id "maven-publish"
 }
 
 group = "com.github.mslenc"
-version = "0.15.0"
+version = "0.30.0"
 
 java {
     toolchain {
@@ -23,14 +26,23 @@ repositories {
 }
 
 dependencies {
+    api "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
+    api "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_version"
+    api "com.fasterxml.jackson.module:jackson-module-parameter-names:$jackson_version"
+    api "com.fasterxml.jackson.datatype:jackson-datatype-jdk8:$jackson_version"
+    api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
+    api "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version"
+
     implementation("com.github.mslenc:utilsktx:1.4.0")
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.7.22"
-    implementation "org.jetbrains.kotlin:kotlin-reflect:1.7.22"
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:1.9.22"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0"
 
     // https://mvnrepository.com/artifact/io.github.lukehutch/fast-classpath-scanner
-    implementation("io.github.lukehutch:fast-classpath-scanner:2.21")
+    implementation "io.github.lukehutch:fast-classpath-scanner:2.21"
+
+    implementation "io.pebbletemplates:pebble:3.2.2"
 
     testImplementation("junit:junit:4.13.2")
 }

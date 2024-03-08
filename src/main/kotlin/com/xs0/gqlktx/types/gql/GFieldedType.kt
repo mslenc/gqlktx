@@ -1,20 +1,25 @@
 package com.xs0.gqlktx.types.gql
 
-import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroField
-import com.xs0.gqlktx.schema.intro.GqlIntroInputValue
 
 import java.util.ArrayList
+import java.util.LinkedHashSet
 
 abstract class GFieldedType protected constructor(
         name: String,
-        val fields: Map<String, GField>) // note that fields are populated later not at construction time
-    : GBaseType(name) {
+        val fields: Map<String, GField>, // note that fields are populated later not at construction time
+        description: String?)
+    : GBaseType(name, description) {
 
-    override val validAsQueryFieldType: Boolean
-        get() {
-            return kind == TypeKind.INPUT_OBJECT
-        }
+    protected var _interfaces: MutableSet<GInterfaceType> = LinkedHashSet()
+
+    internal fun addInterface(interfaceType: GInterfaceType) {
+        _interfaces.add(interfaceType)
+    }
+
+    fun getInterfaces(): Set<GInterfaceType> {
+        return _interfaces
+    }
 
     protected fun dumpFieldsToString(sb: StringBuilder) {
         for ((_, value) in fields) {
@@ -24,26 +29,13 @@ abstract class GFieldedType protected constructor(
         }
     }
 
-    fun getFieldsForIntrospection(includeDeprecated: Boolean): List<GqlIntroField>? {
-        if (kind == TypeKind.INPUT_OBJECT)
-            return null
-
+    fun getFieldsForIntrospection(includeDeprecated: Boolean): List<GqlIntroField> {
         val res = ArrayList<GqlIntroField>(fields.size)
+
         for ((_, value) in fields)
-            res.add(GqlIntroField(value))
+            if (includeDeprecated || !value.deprecated)
+                res.add(GqlIntroField(value))
 
         return res
     }
-
-    val inputFieldsForIntrospection: List<GqlIntroInputValue>?
-        get() {
-            if (kind !== TypeKind.INPUT_OBJECT)
-                return null
-
-            val res = ArrayList<GqlIntroInputValue>(fields.size)
-            for ((_, value) in fields)
-                res.add(GqlIntroInputValue(value))
-
-            return res
-        }
 }

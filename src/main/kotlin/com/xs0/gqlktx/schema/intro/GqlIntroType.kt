@@ -14,27 +14,21 @@ class GqlIntroType(private val type: GType) {
     val name: String?
         get() = (type as? GBaseType)?.name
 
-    // TODO
     val description: String?
-        get() = null
+        get() = (type as? GBaseType)?.description
 
     fun getFields(@GqlParam(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroField>? {
         return (type as? GFieldedType)?.getFieldsForIntrospection(includeDeprecated)
-
     }
 
     val interfaces: List<GqlIntroType>?
         get() = (type as? GObjectType)?.interfacesForIntrospection
 
     val possibleTypes: List<GqlIntroType>?
-        get() {
-            if (type is GUnionType) {
-                return type.membersForIntrospection
-            }
-            if (type is GInterfaceType) {
-                return type.implsForIntrospection
-            }
-            return null
+        get() = when (type) {
+            is GInterfaceType -> type.implsForIntrospection
+            is GUnionType -> type.membersForIntrospection
+            else -> null
         }
 
     fun getEnumValues(@GqlParam(defaultsTo = "false") includeDeprecated: Boolean): List<GqlIntroEnumValue>? {

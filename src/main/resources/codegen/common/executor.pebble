@@ -1,0 +1,5 @@
+object {{ executorName }} : GraphQLExecutor<{{ rootType }}, {{ contextType }}> {
+    override suspend fun execute(rootObject: {{ rootType }}, context: {{ contextType }}, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
+        return {{ stateType }}(rootObject, context, scalarCoercion, queryInput).executeRequest()
+    }
+}

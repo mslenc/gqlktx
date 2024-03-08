@@ -1,6 +1,6 @@
 package com.xs0.gqlktx.types.gql
 
-abstract class GBaseType protected constructor(val name: String) : GType() {
+abstract class GBaseType protected constructor(val name: String, val description: String?) : GType() {
     override val gqlTypeString = name
 
     override val baseType: GBaseType

@@ -1,40 +1,32 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
 import com.xs0.gqlktx.ScalarCoercion
-import com.xs0.gqlktx.ScalarUtils
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.codegen.BaselineExporter
+import com.xs0.gqlktx.codegen.BaselineInputParser
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
 import com.xs0.gqlktx.utils.NodeId
 import kotlin.reflect.KType
 
-class GJavaNodeId<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
+data class GJavaNodeId<CTX: Any>(override val type: KType, override val gqlType: GType) : GJavaScalarLikeType<CTX>() {
     init {
+        checkGqlType()
+
         if (type.classifier != NodeId::class)
             throw IllegalArgumentException("Not a NodeId type ${type.classifier}")
     }
 
-    override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): NodeId {
-        val string = ScalarUtils.validateString(value)
+    override val name = ResolvedName.forBaseline(gqlType.kind != TypeKind.NON_NULL, "NodeId", "com.xs0.gqlktx.utils", "ID")
 
-        try {
-            return NodeId.fromPublicID(string)
-        } catch (e: IllegalArgumentException) {
-            throw ValidationException(e)
-        }
+    override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): NodeId {
+        return BaselineInputParser.parseNodeIdNotNull(value, inputVarParser.inputVariables)
     }
 
     override fun toJson(result: Any, coercion: ScalarCoercion): Any {
-        return when(coercion) {
-            ScalarCoercion.STRICT_JSON,
-            ScalarCoercion.JSON,
-            ScalarCoercion.SPREADSHEET ->
-                (result as NodeId).toPublicId()
-
-            ScalarCoercion.NONE ->
-                result
-        }
+        return BaselineExporter.exportNodeIdNotNull(result as NodeId, coercion)
     }
 }

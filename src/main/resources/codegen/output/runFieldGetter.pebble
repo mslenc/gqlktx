@@ -1,0 +1,13 @@
+{% for param in field.params %}
+                            val {{ param.varName }} = {% if param.hasDefault %}({% endif %}activeField.arguments["{{ param.name }}"]{% if param.hasDefault %} ?: {{ param.defaultExpr }}){% endif %}?.let { {{ param.paramExpr }} }{% if param.required %} ?: throw FieldException("Missing value for {{ param.name }}", parentPath.subField(fieldName)){% endif %}
+{% endfor %}
+
+                            val rawValue = {{ field.getterCall }}
+
+{% if field.hasSubSelections %}
+                            val subSelection = state.mergeSelectionSets(fields)
+{% endif %}
+
+                            {{ field.exportExpr }}
+
+

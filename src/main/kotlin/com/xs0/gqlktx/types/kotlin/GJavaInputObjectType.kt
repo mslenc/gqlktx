@@ -1,17 +1,31 @@
 package com.xs0.gqlktx.types.kotlin
 
 import com.xs0.gqlktx.*
+import com.xs0.gqlktx.codegen.*
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.dom.ValueObject
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
 import com.xs0.gqlktx.types.gql.GInputObjType
 import com.xs0.gqlktx.utils.Maybe
 import kotlin.reflect.KType
 
-class GJavaInputObjectType<CTX>(type: KType, gqlType: GInputObjType, private val info: ReflectedInput) : GJavaType<CTX>(type, gqlType) {
+data class GJavaInputObjectType<CTX: Any>(override val name: ResolvedName, override val type: KType, override val gqlType: GInputObjType, internal val info: ReflectedInput) : GJavaType<CTX>() {
     override fun checkUsage(isInput: Boolean) {
         if (!isInput)
             throw IllegalStateException("$type is used as both input and output")
+    }
+
+    override fun baselineType(): GJavaType<CTX> {
+        return this
+    }
+
+    override fun inputElementType(): GJavaType<CTX>? {
+        return null
+    }
+
+    override fun hasSubSelections(): Boolean {
+        return false
     }
 
     override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Any {
@@ -48,5 +62,27 @@ class GJavaInputObjectType<CTX>(type: KType, gqlType: GInputObjType, private val
         }
 
         return info.constructor.call(*consParams)
+    }
+
+    override fun inputParseInfo(gen: CodeGen<*, CTX>): InputParseCodeGenInfo {
+        val packageName = type.packageName() ?: "Missing package for $type"
+        return InputParseCodeGenInfo(
+            kind = InputParseKind.INPUT_OBJECT,
+            funName = gqlType.gqlTypeString,
+            funReturnType = name.codeGenType,
+            funCreateType = name.codeGenTypeNN,
+            outPackageName = packageName,
+            exprTemplate = "parse" + gqlType.gqlTypeString + "(VALUE, variables)",
+            importsForGen = name.imports,
+            importsForUse = setOf(packageName to "parse" + gqlType.gqlTypeString),
+        )
+    }
+
+    override fun outputExportInfo(gen: CodeGen<*, CTX>): OutputExportCodeGenInfo {
+        throw IllegalStateException("outputExportInfo() called on an input object type")
+    }
+
+    override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
+        return info.props.any { gen.schema.getJavaType(it.type.sourceType).suspendingOutput }
     }
 }

@@ -10,9 +10,6 @@ abstract class GType protected constructor() {
     abstract val kind: TypeKind
     abstract val gqlTypeString: String
 
-    abstract val validAsArgumentType: Boolean
-    abstract val validAsQueryFieldType: Boolean
-
     abstract val baseType: GBaseType
 
     private var myNotNullType: GNotNullType? = null

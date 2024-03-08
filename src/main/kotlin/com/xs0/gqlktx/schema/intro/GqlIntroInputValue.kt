@@ -4,6 +4,7 @@ import com.xs0.gqlktx.GqlObject
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.types.gql.GArgument
 import com.xs0.gqlktx.types.gql.GField
+import com.xs0.gqlktx.types.gql.GInputField
 
 @GqlObject("__InputValue")
 class GqlIntroInputValue {
@@ -23,15 +24,15 @@ class GqlIntroInputValue {
 
     constructor(arg: GArgument) {
         this.name = arg.name
-        this.description = null // TODO
+        this.description = arg.description
         this.type = arg.type.introspector
         this._defaultValue = arg.defaultValue
     }
 
-    constructor(value: GField) {
+    constructor(value: GInputField) {
         this.name = value.name
-        this.description = null // TODO
+        this.description = value.description
         this.type = value.type.introspector
-        this._defaultValue = null
+        this._defaultValue = value.defaultValue
     }
 }

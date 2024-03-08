@@ -1,18 +1,14 @@
 package com.xs0.gqlktx.schema.intro
 
 import com.xs0.gqlktx.GqlObject
+import kotlin.reflect.KClass
 
 @GqlObject("__EnumValue")
-class GqlIntroEnumValue(val name: String) {
-    // TODO
-    val description: String?
-        get() = null
-
-    // TODO
-    val isDeprecated: Boolean
-        get() = false
-
-    // TODO
-    val deprecationReason: String?
-        get() = null
-}
+data class GqlIntroEnumValue(
+    val name: String,
+    val description: String?,
+    val isDeprecated: Boolean,
+    val deprecationReason: String?,
+    internal val rawValue: Enum<*>,
+    internal val sourceClass: KClass<*>,
+)

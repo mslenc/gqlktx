@@ -3,7 +3,7 @@ package com.xs0.gqlktx.types.gql
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.intro.GqlIntroInputValue
 
-class GArgument(val name: String, val type: GType, val defaultValue: Value?) {
+class GArgument(val name: String, val type: GType, val defaultValue: Value?, val description: String?) {
     private val introspector: GqlIntroInputValue = GqlIntroInputValue(this)
 
     fun introspector(): GqlIntroInputValue {

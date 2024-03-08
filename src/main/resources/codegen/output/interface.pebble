@@ -1,0 +1,85 @@
+import com.xs0.gqlktx.FieldException
+import com.xs0.gqlktx.dom.Selection
+import com.xs0.gqlktx.dom.SelectionField
+import com.xs0.gqlktx.exec.FieldPath
+import com.xs0.gqlktx.exec.SimpleQueryExecutor
+import kotlinx.coroutines.*
+
+{% for type in types %}
+
+{% if type.kind == "INTERFACE" %}
+
+{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {
+    return when (obj) {
+        null -> null
+        {% for subType in type.subTypes %}
+        is {{ subType.type }} -> {{ subType.innerExpr }}
+        {% endfor %}
+        else -> throw IllegalStateException("Missing type case for {{ type.funName }}")
+    }
+}
+
+{% elseif type.kind == "NOT_NULL" %}
+
+{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return {{ type.innerExpr }} ?: throw NullPointerException("executeGQL{{ type.funName }}")
+}
+
+{% elseif type.kind == "ARRAY_OF" %}
+
+{% if type.suspending %}
+
+suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
+    if (obj == null)
+        return@supervisorScope null
+
+    obj.mapIndexed { i, el ->
+        async(start = CoroutineStart.UNDISPATCHED) {
+            {{ type.innerExpr }}
+        }
+    }.awaitAll()
+}
+
+{% else %}
+
+fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return obj?.mapIndexed { i, el ->
+        {{ type.innerExpr }}
+    }
+}
+
+{% endif %}
+
+{% elseif type.kind == "COLLECTION_OF" %}
+
+{% if type.suspending %}
+
+suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
+    if (obj == null)
+        return@supervisorScope null
+
+    obj.mapIndexed { i, el ->
+        async(start = CoroutineStart.UNDISPATCHED) {
+            {{ type.innerExpr }}
+        }
+    }.awaitAll()
+}
+
+
+{% else %}
+
+fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+    return obj?.mapIndexed { i, el ->
+        {{ type.innerExpr }}
+    }
+}
+
+{% endif %}
+
+{% else %}
+
+{{ missing_kind_support }}
+
+{% endif %}
+
+{% endfor %}

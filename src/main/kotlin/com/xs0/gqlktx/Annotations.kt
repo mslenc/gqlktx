@@ -42,7 +42,7 @@ annotation class GqlField(
     val description: String = ""
 )
 
-@Retention(AnnotationRetention.RUNTIME)
+@Retention(RUNTIME)
 @Target(VALUE_PARAMETER)
 annotation class GqlParam(
     /**
@@ -58,7 +58,11 @@ annotation class GqlParam(
      * Whether a value is required to be provided in the query. Exclusive with
      * defaultsTo.
      */
-    val required: Boolean = false
+    val required: Boolean = false,
+    /**
+     * The description of the parameter.
+     */
+    val description: String = "",
 )
 
 @Retention(RUNTIME)
@@ -74,6 +78,7 @@ annotation class GqlObject(
 annotation class GqlInterface(
     val name: String = "",
     val description: String = "",
+    val implements: Array<KClass<*>> = [],
     val implementedBy: Array<KClass<*>> = []
 )
 
@@ -87,11 +92,10 @@ annotation class GqlUnion(
 
 
 @Retention(RUNTIME)
-@Target(CLASS, PROPERTY, FUNCTION)
-annotation class GqlInput(
+@Target(CLASS)
+annotation class GqlInputObject(
     val name: String = "",
     val description: String = "",
-    val defaultsTo: String = ""
 )
 
 @Retention(RUNTIME)

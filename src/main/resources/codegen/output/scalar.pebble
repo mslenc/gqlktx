@@ -1,0 +1,44 @@
+import com.xs0.gqlktx.ScalarCoercion
+
+{% for type in types %}
+
+{% if type.kind == "ENUM" %}
+
+fun export{{ type.funName }}(value: {{ type.typeName }}, coercion: ScalarCoercion): {{ type.funReturnType }} {
+    if (coercion == ScalarCoercion.NONE)
+        return value
+
+    return when (value) {
+        null -> null
+
+        {% for enumVal in type.enumValues %}
+        {{ enumVal.value }} -> "{{ enumVal.publicName }}"
+        {% endfor %}
+    }
+}
+
+{% elseif type.kind == "NOT_NULL" %}
+
+fun export{{ type.funName }}(value: {{ type.typeName }}, coercion: ScalarCoercion): {{ type.funReturnType }} {
+    return {{ type.innerExpr }} ?: throw NullPointerException("export{{ type.funName }}")
+}
+
+{% elseif type.kind == "ARRAY_OF" %}
+
+fun export{{ type.funName }}(value: {{ type.typeName }}, coercion: ScalarCoercion): {{ type.funReturnType }} {
+    return value.map { v -> {{ type.innerExpr }} }
+}
+
+{% elseif type.kind == "COLLECTION_OF" %}
+
+fun export{{ type.funName }}(value: {{ type.typeName }}, coercion: ScalarCoercion): {{ type.funReturnType }} {
+    {% if type.nullableValue %}
+    return value?.map { v -> {{ type.innerExpr }} }
+    {% else %}
+    return value.map { v -> {{ type.innerExpr }} }
+    {% endif %}
+}
+
+{% endif %}
+
+{% endfor %}

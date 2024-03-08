@@ -1,0 +1,25 @@
+import com.xs0.gqlktx.ScalarCoercion
+import com.xs0.gqlktx.dom.Selection
+import com.xs0.gqlktx.utils.QueryInput
+import com.xs0.gqlktx.exec.FieldPath
+import com.xs0.gqlktx.codegen.BaseGqlState
+import com.xs0.gqlktx.codegen.*
+import com.xs0.gqlktx.GraphQLExecutor
+
+class {{ stateType }}(
+    val rootObject: {{ rootType }},
+    val context: {{ contextType }},
+    override val coercion: ScalarCoercion,
+    queryInput: QueryInput
+) : BaseGqlState(queryInput) {
+    override val introData: BaseIntroData
+        get() = {{ introDataType }}
+
+    override suspend fun doExecuteQuery(selectionSet: List<Selection>): Map<String, Any?> {
+        return {{ queryExpr }}
+    }
+
+    override suspend fun doExecuteMutation(selectionSet: List<Selection>): Map<String, Any?> {
+        return {{ mutationExpr }}
+    }
+}

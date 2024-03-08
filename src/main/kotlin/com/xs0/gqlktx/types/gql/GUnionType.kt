@@ -8,22 +8,12 @@ import com.xs0.gqlktx.schema.intro.GqlIntroType
 import java.util.ArrayList
 import java.util.HashSet
 
-class GUnionType(name: String) : GBaseType(name) {
+class GUnionType(name: String, description: String?) : GBaseType(name, description) {
     lateinit var members: Set<GObjectType>
         private set
 
     override val kind: TypeKind
         get() = TypeKind.UNION
-
-    override val validAsQueryFieldType: Boolean
-        get() {
-            return true
-        }
-
-    override val validAsArgumentType: Boolean
-        get() {
-            return false
-        }
 
     override fun coerceValue(raw: Value): Value {
         throw QueryException("Union type $name can't be used as a variable")

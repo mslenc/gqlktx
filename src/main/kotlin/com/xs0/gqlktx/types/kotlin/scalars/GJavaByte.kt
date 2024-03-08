@@ -1,35 +1,33 @@
 package com.xs0.gqlktx.types.kotlin.scalars
 
 import com.xs0.gqlktx.ScalarCoercion
-import com.xs0.gqlktx.ScalarUtils
-import com.xs0.gqlktx.ValidationException
+import com.xs0.gqlktx.codegen.BaselineExporter
+import com.xs0.gqlktx.codegen.BaselineInputParser
+import com.xs0.gqlktx.codegen.CodeGen
+import com.xs0.gqlktx.codegen.OutputExportCodeGenInfo
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
+import com.xs0.gqlktx.schema.builder.ResolvedName
+import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.types.gql.GType
 import com.xs0.gqlktx.types.kotlin.GJavaScalarLikeType
+import com.xs0.gqlktx.types.kotlin.GJavaType
 import kotlin.reflect.KType
 
-class GJavaByte<CTX>(type: KType, gqlType: GType) : GJavaScalarLikeType<CTX>(type, gqlType) {
+data class GJavaByte<CTX: Any>(override val type: KType, override val gqlType: GType) : GJavaScalarLikeType<CTX>() {
+    init { checkGqlType() }
+
+    override val name = ResolvedName.forBaseline(gqlType.kind != TypeKind.NON_NULL, "Byte", null, "Int")
+
     override fun getFromJson(value: Value, inputVarParser: InputVarParser<CTX>): Byte {
-        val intVal = ScalarUtils.validateInteger(value)
-
-        if (intVal < Byte.MIN_VALUE || intVal > Byte.MAX_VALUE)
-            throw ValidationException("Value is out of range")
-
-        return intVal.toByte()
+        return BaselineInputParser.parseByteNotNull(value, inputVarParser.inputVariables)
     }
 
     override fun toJson(result: Any, coercion: ScalarCoercion): Any {
-        return when(coercion) {
-            ScalarCoercion.STRICT_JSON ->
-                (result as Number).toDouble()
+        return BaselineExporter.exportByteNotNull(result as Byte, coercion)
+    }
 
-            ScalarCoercion.JSON,
-            ScalarCoercion.SPREADSHEET ->
-                (result as Number).toInt()
-
-            ScalarCoercion.NONE ->
-                result
-        }
+    override fun outputExportInfo(gen: CodeGen<*, CTX>): OutputExportCodeGenInfo {
+        return BaselineExporter.codeGenInfo(name, gen, "Number")
     }
 }

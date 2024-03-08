@@ -5,12 +5,13 @@ import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.schema.intro.GqlIntroType
 import java.util.ArrayList
+import java.util.LinkedHashSet
 
-class GInterfaceType(name: String, fields: Map<String, GField>) : GFieldedType(name, fields) {
-    lateinit var implementations: Set<GObjectType>
+class GInterfaceType(name: String, fields: Map<String, GField>, description: String?) : GFieldedType(name, fields, description) {
+    lateinit var implementations: Set<GFieldedType>
         private set
 
-    fun setImpls(implementations: Set<GObjectType>) {
+    fun setImpls(implementations: Set<GFieldedType>) {
         this.implementations = implementations
 
         for (objectType in implementations) {
@@ -27,11 +28,6 @@ class GInterfaceType(name: String, fields: Map<String, GField>) : GFieldedType(n
 
     override val kind: TypeKind
         get() = TypeKind.INTERFACE
-
-    override val validAsArgumentType: Boolean
-        get() {
-            return false
-        }
 
     override fun coerceValue(raw: Value): Value {
         throw QueryException("Interface type $name can't be used as a variable")

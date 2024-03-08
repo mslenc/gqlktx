@@ -8,7 +8,7 @@ enum class TypeKind(val explicitAnnotation: KClass<out Annotation>?) {
     SCALAR(GqlScalar::class),
     ENUM(GqlEnum::class),
 
-    INPUT_OBJECT(GqlInput::class),
+    INPUT_OBJECT(GqlInputObject::class),
 
     INTERFACE(GqlInterface::class),
     OBJECT(GqlObject::class),

@@ -4,7 +4,7 @@ import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.schema.builder.TypeKind
 
-class GScalarType(name: String, private val varValueValidator: (Value)->Any) : GValueType(name) {
+class GScalarType(name: String, private val varValueValidator: (Value)->Any, description: String?) : GValueType(name, description) {
     override val kind: TypeKind
         get() = TypeKind.SCALAR
 

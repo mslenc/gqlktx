@@ -9,14 +9,20 @@ import com.xs0.gqlktx.types.gql.GType
 
 import kotlin.reflect.KType
 
-abstract class GJavaListLikeType<CTX>(type: KType, gqlType: GType, val elementType: GJavaType<CTX>) : GJavaType<CTX>(type, gqlType) {
-    init {
+abstract class GJavaListLikeType<CTX: Any> : GJavaType<CTX>() {
+    abstract val elementType: GJavaType<CTX>
+
+    protected fun checkGqlType() {
         if (gqlType.kind != TypeKind.LIST)
             throw IllegalStateException("Expected a list type")
     }
 
     override fun checkUsage(isInput: Boolean) {
         elementType.checkUsage(isInput)
+    }
+
+    override fun baselineType(): GJavaType<CTX> {
+        return elementType.baselineType()
     }
 
     /**

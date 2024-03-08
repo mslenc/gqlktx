@@ -9,7 +9,8 @@ import com.xs0.gqlktx.schema.intro.GqlIntroEnumValue
 
 import java.util.ArrayList
 
-class GEnumType(name: String, val values: Set<String>) : GValueType(name) {
+class GEnumType(name: String, val enumValues: List<GqlIntroEnumValue>, description: String?) : GValueType(name, description) {
+    val stringValues = enumValues.map { it.name }
 
     override val kind: TypeKind
         get() = TypeKind.ENUM
@@ -29,23 +30,24 @@ class GEnumType(name: String, val values: Set<String>) : GValueType(name) {
     }
 
     private fun check(string: String): String {
-        if (values.contains(string))
+        if (stringValues.contains(string))
             return string
 
-        throw QueryException("Invalid enum value ($string). The possibilities are: $values")
+        throw QueryException("Invalid enum value ($string). The possibilities are: $stringValues")
     }
 
     override fun toString(sb: StringBuilder) {
         sb.append("enum ").append(name).append(" {\n")
-        for (`val` in values)
+        for (`val` in stringValues)
             sb.append("  ").append(`val`).append("\n")
         sb.append("}\n")
     }
 
     fun getValuesForIntrospection(includeDeprecated: Boolean): List<GqlIntroEnumValue> {
-        val res = ArrayList<GqlIntroEnumValue>()
-        for (value in values)
-            res.add(GqlIntroEnumValue(value))
-        return res
+        if (includeDeprecated) {
+            return enumValues
+        } else {
+            return enumValues.filter { !it.isDeprecated }
+        }
     }
 }
