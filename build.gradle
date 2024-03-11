@@ -1,15 +1,17 @@
 buildscript {
-    ext.jackson_version = '2.14.1'
+    ext.jackson_version = '2.16.1'
+    ext.kotlin_version = '1.9.23'
 }
 
 plugins {
     id "java-library"
-    id "org.jetbrains.kotlin.jvm" version "1.9.22"
+    id "org.jetbrains.kotlin.jvm" version "$kotlin_version"
     id "maven-publish"
+    id "signing"
 }
 
-group = "com.github.mslenc"
-version = "0.30.0"
+group = "io.github.mslenc"
+version = "0.30.2"
 
 java {
     toolchain {
@@ -22,7 +24,7 @@ java {
 repositories {
     mavenLocal()
     mavenCentral()
-    maven { url "https://jitpack.io" }
+    maven { url "https://mslenc-releases.s3.amazonaws.com/maven2" }
 }
 
 dependencies {
@@ -33,10 +35,10 @@ dependencies {
     api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
     api "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version"
 
-    implementation("com.github.mslenc:utilsktx:1.4.0")
+    implementation("io.github.mslenc:utilsktx:1.5.3")
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22"
-    implementation "org.jetbrains.kotlin:kotlin-reflect:1.9.22"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0"
 
     // https://mvnrepository.com/artifact/io.github.lukehutch/fast-classpath-scanner
@@ -50,7 +52,50 @@ dependencies {
 publishing {
     publications {
         mavenJava(MavenPublication) {
+            artifactId = 'gqlktx'
             from components.java
+
+            pom {
+                name = "gqlktx"
+                description = "A GraphQL executor for Kotlin."
+                url = "https://github.com/mslenc/gqlktx"
+
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'mslenc'
+                        name = 'Mitja Slenc'
+                        email = 'mslenc@gmail.com'
+                    }
+                }
+
+                scm {
+                    connection = "scm:git:https://github.com/mslenc/gqlktx.git"
+                    developerConnection = "scm:git:git@github.com:mslenc/gqlktx.git"
+                    url = "https://github.com/mslenc/gqlktx"
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            url = "s3://mslenc-releases/maven2"
+            credentials(AwsCredentials) {
+                accessKey = awsAccessKeyMslenc
+                secretKey = awsSecretKeyMslenc
+            }
         }
     }
 }
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
