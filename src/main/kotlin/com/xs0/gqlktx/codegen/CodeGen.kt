@@ -320,7 +320,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
             val base = group.first().deepestInputElementType()
 
             when {
-                base is GJavaObjectType -> codeGenObject(base, group, base == queryType, base == mutType)
+                base is GJavaObjectType -> codeGenObject(base, group, base == queryType.unwrapNotNull(), base == mutType?.unwrapNotNull())
                 base is GJavaInputObjectType -> codeGenInput(base, group)
                 base is GJavaInterfaceType -> codeGenInterface(base, group)
                 base is GJavaUnionType -> codeGenInterface(base, group)
@@ -330,7 +330,12 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
         }
     }
 
-
+    private fun GJavaType<CTX>.unwrapNotNull(): GJavaType<CTX> {
+        return when (this) {
+            is GJavaNotNullType -> this.innerType
+            else -> this
+        }
+    }
 
     fun findActualInputs(): Set<GJavaType<CTX>> {
         val set = HashSet<GJavaType<CTX>>()
