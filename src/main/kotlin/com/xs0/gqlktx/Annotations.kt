@@ -4,7 +4,7 @@ import kotlin.annotation.AnnotationRetention.RUNTIME
 import kotlin.annotation.AnnotationTarget.*
 import kotlin.reflect.KClass
 
-@Target(FUNCTION, PROPERTY, VALUE_PARAMETER, CONSTRUCTOR)
+@Target(PROPERTY_GETTER, PROPERTY, FUNCTION, VALUE_PARAMETER, CONSTRUCTOR)
 @Retention(RUNTIME)
 annotation class GqlIgnore
 

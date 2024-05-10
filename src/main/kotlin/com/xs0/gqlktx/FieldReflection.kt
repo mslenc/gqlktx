@@ -5,6 +5,7 @@ import com.xs0.gqlktx.parser.GraphQLParser
 import java.util.concurrent.CompletableFuture
 import kotlin.reflect.*
 import kotlin.reflect.full.*
+import kotlin.reflect.jvm.javaMethod
 
 enum class ParamKind {
     THIS, // receiver object
@@ -15,7 +16,27 @@ enum class ParamKind {
 }
 
 val KParameter.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
-val KCallable<*>.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
+val KCallable<*>.ignored: Boolean get() {
+    if (findAnnotation<GqlIgnore>() != null)
+        return true
+
+    if (this !is KProperty)
+        return false
+
+    if (getter.findAnnotation<GqlIgnore>() != null)
+        return true
+
+    val decl = getter.javaMethod?.declaringClass?.kotlin ?: return false
+    if (decl.isData) {
+        val cons = decl.primaryConstructor ?: return false
+        val param = cons.parameters.firstOrNull { it.name == name } ?: return false
+        if (param.findAnnotation<GqlIgnore>() != null)
+            return true
+    }
+
+    return false
+}
+
 val KClass<*>.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
 val KCallable<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
 val KClass<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
