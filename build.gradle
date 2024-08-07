@@ -1,6 +1,7 @@
 buildscript {
-    ext.jackson_version = '2.16.1'
-    ext.kotlin_version = '1.9.23'
+    ext.jackson_version = '2.17.2'
+    ext.kotlin_version = '2.0.10'
+    ext.coroutines_version = '1.8.1'
 }
 
 plugins {
@@ -11,7 +12,7 @@ plugins {
 }
 
 group = "io.github.mslenc"
-version = "0.30.4"
+version = "0.31.0"
 
 java {
     toolchain {
@@ -35,11 +36,11 @@ dependencies {
     api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
     api "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version"
 
-    implementation("io.github.mslenc:utilsktx:1.5.3")
+    implementation("io.github.mslenc:utilsktx:1.6.0")
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version"
 
     // https://mvnrepository.com/artifact/io.github.lukehutch/fast-classpath-scanner
     implementation "io.github.lukehutch:fast-classpath-scanner:2.21"
