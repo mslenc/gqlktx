@@ -44,8 +44,8 @@ class QueryRoot {
         return (cases ?: emptyList()).map {
             when (it) {
                 Case.AS_IS -> inputString
-                Case.LOWERCASE -> inputString.toLowerCase()
-                Case.UPPERCASE -> inputString.toUpperCase()
+                Case.LOWERCASE -> inputString.lowercase()
+                Case.UPPERCASE -> inputString.uppercase()
             }
         }
     }

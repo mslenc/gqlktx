@@ -149,7 +149,7 @@ class InputHandlingTest {
         val dumpRequired = data.getValue("dumpRequired") as List<String>
 
         assertEquals(1, dumpRequired.size)
-        assertEquals("RequiredInput(time=21:10:09, main=RequiredInfo(name=Mitja, status=DELETED), others=[RequiredInfo(name=Matt, status=ACTIVE)])".toUpperCase(), dumpRequired[0])
+        assertEquals("RequiredInput(time=21:10:09, main=RequiredInfo(name=Mitja, status=DELETED), others=[RequiredInfo(name=Matt, status=ACTIVE)])".uppercase(), dumpRequired[0])
     }
 
     @Test
@@ -174,7 +174,7 @@ class InputHandlingTest {
         val dumpRequired = data.getValue("dumpRequired") as List<String>
 
         assertEquals(1, dumpRequired.size)
-        assertEquals("RequiredInput(time=21:10:09, main=RequiredInfo(name=Mitja, status=ACTIVE), others=[RequiredInfo(name=Matt, status=ACTIVE)])".toUpperCase(), dumpRequired[0])
+        assertEquals("RequiredInput(time=21:10:09, main=RequiredInfo(name=Mitja, status=ACTIVE), others=[RequiredInfo(name=Matt, status=ACTIVE)])".uppercase(), dumpRequired[0])
     }
 
     @Test
