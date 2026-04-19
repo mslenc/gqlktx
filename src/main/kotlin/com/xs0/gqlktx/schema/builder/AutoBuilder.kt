@@ -10,8 +10,6 @@ import com.xs0.gqlktx.types.gql.*
 import com.xs0.gqlktx.types.kotlin.*
 import com.xs0.gqlktx.types.kotlin.lists.*
 import com.xs0.gqlktx.types.kotlin.scalars.*
-import io.github.lukehutch.fastclasspathscanner.FastClasspathScanner
-import io.github.lukehutch.fastclasspathscanner.scanner.ScanResult
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import java.util.*
@@ -19,13 +17,18 @@ import java.util.*
 import com.xs0.gqlktx.schema.builder.TypeKind.*
 import com.xs0.gqlktx.schema.intro.GqlIntroEnumValue
 import com.xs0.gqlktx.utils.NodeId
+import io.github.classgraph.ClassGraph
+import io.github.classgraph.ClassInfo
+import io.github.classgraph.ScanResult
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.HashMap
 import kotlin.collections.LinkedHashMap
+import kotlin.let
 import kotlin.reflect.full.createType
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSuperclassOf
@@ -47,8 +50,17 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     private val contextTypes = findContextTypes(contextType)
     private val cachedOutputMethods = HashMap<KClass<*>, Map<String, FieldGetter<CTX>>>()
 
+    private val classGraphCleanUp = AtomicReference<ScanResult?>()
     private val scanResult by lazy<ScanResult> {
-        FastClasspathScanner(*classPathScanSpec).scan()
+        val graph = ClassGraph()
+        graph.enableAnnotationInfo()
+        graph.enableClassInfo()
+        if (classPathScanSpec.isNotEmpty())
+            graph.acceptPackages(*classPathScanSpec)
+
+        graph.scan().also {
+            classGraphCleanUp.set(it)
+        }
     }
 
     init {
@@ -189,7 +201,11 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         schema.setRoots(getQueryRoot, getMutationRoot)
 
-        return schema.build()
+        return try {
+            schema.build()
+        } finally {
+            classGraphCleanUp.getAndSet(null)?.close()
+        }
     }
 
     protected fun validate() {
@@ -305,8 +321,6 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             INPUT_OBJECT -> return buildInputObject(baseClass)
             INTERFACE -> return buildInterface(baseClass)
             UNION -> return buildUnion(baseClass)
-
-            else -> throw IllegalStateException("Unexpected kind $kind for a base type")
         }
     }
 
@@ -419,18 +433,22 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
     private fun findImplementations(baseClass: KClass<*>): Array<KClass<*>> {
         val scanResult = scanResult
 
-        val toCheck = ArrayList<String>()
+        val toCheck = ArrayList<ClassInfo>()
         if (baseClass.java.isInterface) {
-            toCheck.addAll(scanResult.getNamesOfClassesImplementing(baseClass.java))
-            toCheck.addAll(scanResult.getNamesOfSubinterfacesOf(baseClass.java))
+            toCheck.addAll(scanResult.getClassesImplementing(baseClass.java))
+            toCheck.addAll(scanResult.getSubclasses(baseClass.java))
         } else {
-            toCheck.addAll(scanResult.getNamesOfSubclassesOf(baseClass.java))
+            toCheck.addAll(scanResult.getSubclasses(baseClass.java))
         }
 
-        val classList = HashSet(scanResult.classNamesToClassRefs(toCheck))
+        val classList = toCheck.mapNotNullTo(HashSet()) { it.loadClass(true) }
 
-        scanResult.getNamesOfClassesWithAnnotation(GqlObject::class.java)?.let { posibs ->
-            for (posib in scanResult.classNamesToClassRefs(posibs)) {
+        scanResult.getClassesWithAnnotation(GqlObject::class.java)?.let { posibs ->
+            for (posibInfo in posibs) {
+                val posib = posibInfo.loadClass(true) ?: run {
+                    logger.warn("Couldn't load class ${posibInfo.name} for ${baseClass.java.name}")
+                    continue
+                }
                 val ann = posib.getAnnotation(GqlObject::class.java)
                 if (ann != null && ann.implements.isNotEmpty()) {
                     for (i in ann.implements)
@@ -440,8 +458,12 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
             }
         }
 
-        scanResult.getNamesOfClassesWithAnnotation(GqlInterface::class.java)?.let { posibs ->
-            for (posib in scanResult.classNamesToClassRefs(posibs)) {
+        scanResult.getClassesWithAnnotation(GqlInterface::class.java)?.let { posibs ->
+            for (posibInfo in posibs) {
+                val posib = posibInfo.loadClass(true) ?: run {
+                    logger.warn("Couldn't load class ${posibInfo.name} for ${baseClass.java.name}")
+                    continue
+                }
                 val ann = posib.getAnnotation(GqlInterface::class.java)
                 if (ann != null && ann.implements.isNotEmpty()) {
                     for (i in ann.implements)
@@ -569,7 +591,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         val posibs = HashSet<TypeKind>()
 
-        for (kind in TypeKind.values())
+        for (kind in TypeKind.entries)
             if (kind.explicitAnnotation != null && baseClass.annotations.firstOrNull { kind.explicitAnnotation.isInstance(it) } != null)
                 posibs.add(kind)
 

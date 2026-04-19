@@ -1,6 +1,6 @@
 buildscript {
-    ext.jackson_version = '2.17.2'
-    ext.kotlin_version = '2.3.10'
+    ext.jackson_version = '2.20.1'
+    ext.kotlin_version = '2.3.20'
     ext.coroutines_version = '1.10.2'
 }
 
@@ -12,14 +12,17 @@ plugins {
 }
 
 group = "io.github.mslenc"
-version = "0.31.1"
+version = "0.32.0"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(8)
+        languageVersion = JavaLanguageVersion.of(17)
     }
     withJavadocJar()
     withSourcesJar()
+}
+kotlin {
+    jvmToolchain(17)
 }
 
 repositories {
@@ -36,18 +39,21 @@ dependencies {
     api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
     api "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version"
 
-    implementation("io.github.mslenc:utilsktx:1.6.1")
+    implementation("io.github.mslenc:utilsktx:1.7.0")
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib"
+    implementation "org.jetbrains.kotlin:kotlin-reflect"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version"
 
-    // https://mvnrepository.com/artifact/io.github.lukehutch/fast-classpath-scanner
-    implementation "io.github.lukehutch:fast-classpath-scanner:2.21"
+    // Source: https://mvnrepository.com/artifact/io.github.classgraph/classgraph
+    implementation("io.github.classgraph:classgraph:4.8.184")
 
     implementation "io.pebbletemplates:pebble:3.2.4"
 
     testImplementation("junit:junit:4.13.2")
+    // https://mvnrepository.com/artifact/ch.qos.logback/logback-classic
+    testImplementation "ch.qos.logback:logback-classic:1.5.32"
+
 }
 
 publishing {
