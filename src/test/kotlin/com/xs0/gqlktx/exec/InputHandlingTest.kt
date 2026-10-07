@@ -1,5 +1,7 @@
 package com.xs0.gqlktx.exec
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.xs0.gqlktx.codegen.INTRO_JSON_MAPPER
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.schema.builder.AutoBuilder
 import com.xs0.gqlktx.testschemas.inputs.InputsTestSchema
@@ -34,9 +36,9 @@ class InputHandlingTest {
 
     @Test
     fun testMaybeWorks() {
-        val query = """
-            query ItemUpdate(${'$'}input: ItemUpdateInput!) {
-                itemUpdate(input: ${'$'}input)
+        val query = $$"""
+            query ItemUpdate($input: ItemUpdateInput!) {
+                itemUpdate(input: $input)
             }
         """.trimIndent()
 
@@ -128,9 +130,9 @@ class InputHandlingTest {
 
     @Test
     fun testRequiredInputsMixed() {
-        val query = """
-            query Query2(${'$'}time: Time!, ${'$'}mitjaStatus: Status!)  {
-                dumpRequired(input: { time: ${'$'}time, main: { name: "Mitja", status: ${'$'}mitjaStatus }, others: [ { name: "Matt", status: ACTIVE } ] }, cases: [ UPPERCASE ] )
+        val query = $$"""
+            query Query2($time: Time!, $mitjaStatus: Status!)  {
+                dumpRequired(input: { time: $time, main: { name: "Mitja", status: $mitjaStatus }, others: [ { name: "Matt", status: ACTIVE } ] }, cases: [ UPPERCASE ] )
             }
         """
 
@@ -154,9 +156,9 @@ class InputHandlingTest {
 
     @Test
     fun testRequiredInputsMixed2() {
-        val query = """
-            query Query3(${'$'}time: Time!, ${'$'}mitjaStatus: Status = ACTIVE)  {
-                dumpRequired(input: { time: ${'$'}time, main: { name: "Mitja", status: ${'$'}mitjaStatus }, others: [ { name: "Matt", status: ACTIVE } ] }, cases: [ UPPERCASE ] )
+        val query = $$"""
+            query Query3($time: Time!, $mitjaStatus: Status = ACTIVE)  {
+                dumpRequired(input: { time: $time, main: { name: "Mitja", status: $mitjaStatus }, others: [ { name: "Matt", status: ACTIVE } ] }, cases: [ UPPERCASE ] )
             }
         """
 
@@ -179,9 +181,9 @@ class InputHandlingTest {
 
     @Test
     fun testNullsHandling() {
-        val query = """
-            query Query4(${'$'}a: String, ${'$'}b: String = "defVal")  {
-                concat(a: ${'$'}a, b: ${'$'}b)
+        val query = $$"""
+            query Query4($a: String, $b: String = "defVal")  {
+                concat(a: $a, b: $b)
             }
         """
 
@@ -226,5 +228,52 @@ class InputHandlingTest {
 
             assertEquals(expected, concat)
         }
+    }
+
+    @Test
+    fun testObjectNodeBasics() {
+        val query = $$"""
+            query Query5($input: GenericThingInput!, $props: JsonObject!) {
+                resWhole: genericThingUpdate(input: $input) { type id props }
+                resPartial: genericThingUpdate(input: { id: "abc", type: "Thing", props: $props }) { type id props }
+            }
+        """
+
+        val schema = AutoBuilder.build(InputsTestSchema::class, Unit::class)
+
+        val variables = mapOf(
+            "input" to ValueObject(mapOf(
+                "id" to ValueString("id123"),
+                "type" to ValueString("FirstThing"),
+                "props" to ValueObject(mapOf(
+                    "bubu" to ValueBool(true)
+                ))
+            )),
+            "props" to ValueObject(mapOf(
+                "str" to ValueString("strValue"),
+                "num" to ValueNumber("888")
+            ))
+        )
+
+
+        val result = runBlocking {
+            SimpleQueryExecutor.execute(schema, InputsTestSchema, Unit, QueryInput(query, variables, null, false))
+        }
+
+        val data = result.getValue("data") as Map<String, Any?>
+        val resWhole = data.getValue("resWhole") as Map<String, Any?>
+        val resPartial = data.getValue("resPartial") as Map<String, Any?>
+
+        assertEquals(mapOf(
+            "type" to "FirstThing",
+            "id" to "id123",
+            "props" to INTRO_JSON_MAPPER.readValue("""{ "bubu": true, "updated": true }""", ObjectNode::class.java)
+        ), resWhole)
+
+        assertEquals(mapOf(
+            "type" to "Thing",
+            "id" to "abc",
+            "props" to INTRO_JSON_MAPPER.readValue("""{ "str": "strValue", "num": 888, "updated": true }""", ObjectNode::class.java)
+        ), resPartial)
     }
 }

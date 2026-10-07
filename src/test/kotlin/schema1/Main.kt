@@ -29,6 +29,8 @@ class FirstTest {
                                     fullName
                                 }
                             }
+                            
+                            addWarning(warning: "Test warning")
                         }
                     """.trimIndent()
 
@@ -39,7 +41,14 @@ class FirstTest {
         assertNotNull(result)
         assertNull(result["errors"])
         assertNotNull(result["data"])
-        assertEquals("{posts=[{id=w3BzdAEB, title=First post ever, text=null, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}, {id=w3BzdAED, title=Second post ever, text=With text this time :), owner={id=w3VzcgEC, email=john@example.com, fullName=John}}, {id=w3BzdAEI, title=Third post, text=Something old, something new, owner={id=w3VzcgED, email=mary@example.com, fullName=Mary Johnson}}, {id=w3BzdAEJ, title=Final post, text=Again, some text, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}]}", result["data"].toString())
+        assertNotNull(result["extensions"])
+        assertEquals("{posts=[" +
+                         "{id=w3BzdAEB, title=First post ever, text=null, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}, " +
+                         "{id=w3BzdAED, title=Second post ever, text=With text this time :), owner={id=w3VzcgEC, email=john@example.com, fullName=John}}, " +
+                         "{id=w3BzdAEI, title=Third post, text=Something old, something new, owner={id=w3VzcgED, email=mary@example.com, fullName=Mary Johnson}}, " +
+                         "{id=w3BzdAEJ, title=Final post, text=Again, some text, owner={id=w3VzcgEB, email=mslenc@gmail.com, fullName=null}}" +
+                     "], addWarning=Test warning}", result["data"].toString())
+        assertEquals("{warnings=[TEST WARNING]}", result["extensions"].toString())
     }
 
     @Test

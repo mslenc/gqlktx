@@ -141,4 +141,8 @@ data class GJavaCollectionType<CTX: Any>(val listClass: KType, override val elem
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return elementType.suspendingOutput
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return elementType.hasContext
+    }
 }

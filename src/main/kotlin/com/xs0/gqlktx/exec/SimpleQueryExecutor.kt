@@ -30,13 +30,28 @@ interface QueryExecutor {
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion = ScalarCoercion.JSON): Map<String, Any?>
 }
 
+private val extensionsHolder = ThreadLocal<MutableMap<String, Any?>>()
+
+fun gqlExtensions() = extensionsHolder.get()
+
+internal fun setGqlExtensions(map: MutableMap<String, Any?>?) {
+    extensionsHolder.set(map)
+}
+
 object SimpleQueryExecutor : QueryExecutor {
     private val log = getLogger<SimpleQueryExecutor>()
 
     override suspend fun <SCHEMA: Any, CTX: Any>
     execute(schema: Schema<SCHEMA, CTX>, rootObject: SCHEMA, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
         val startedAt = System.currentTimeMillis()
-        val result = SimpleQueryState(schema, rootObject, context, scalarCoercion, queryInput).executeRequest()
+
+        val ext = LinkedHashMap<String, Any?>()
+        setGqlExtensions(ext)
+        val result = try {
+            SimpleQueryState(schema, rootObject, context, scalarCoercion, queryInput, ext).executeRequest()
+        } finally {
+            setGqlExtensions(null)
+        }
 
         if (log.isInfoEnabled) {
             val endedAt = System.currentTimeMillis()
@@ -52,7 +67,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX: Any>(
         private val rootObject: SCHEMA,
         private val context: CTX,
         private val scalarCoercion: ScalarCoercion,
-        queryInput: QueryInput) {
+        queryInput: QueryInput,
+        private val extensions: MutableMap<String, Any?>,
+    ) {
 
     private val rawQuery: String = queryInput.query
     private val opName: String? = queryInput.opName
@@ -76,7 +93,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX: Any>(
             data = null
         }
 
-        return createResponse(data, errors)
+        return createResponse(data, errors, extensions)
     }
 
     private fun handleException(e: Throwable) {
@@ -546,7 +563,7 @@ internal class SimpleQueryState<SCHEMA: Any, CTX: Any>(
         errors.add(error)
     }
 
-    private fun createResponse(data: Map<String, Any?>?, errors: List<Any?>?): Map<String, Any?> {
+    private fun createResponse(data: Map<String, Any?>?, errors: List<Any?>?, extensions: Map<String, Any?>): Map<String, Any?> {
         val result = LinkedHashMap<String, Any?>()
 
         if (data != null && data.isNotEmpty())
@@ -554,6 +571,9 @@ internal class SimpleQueryState<SCHEMA: Any, CTX: Any>(
 
         if (errors != null && errors.isNotEmpty())
             result["errors"] = errors
+
+        if (extensions.isNotEmpty())
+            result["extensions"] = extensions
 
         return result
     }

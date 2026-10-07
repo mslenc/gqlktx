@@ -8,7 +8,7 @@ import kotlin.reflect.KType
 import kotlin.reflect.full.isSubclassOf
 
 fun validGraphQLName(name: String?, allowIntrospectionNames: Boolean): Boolean {
-    if (name == null || name.isBlank())
+    if (name.isNullOrBlank())
         return false
 
     if (!allowIntrospectionNames && name.startsWith("__"))
@@ -66,11 +66,11 @@ fun extractTypeParam(source: KType?, vararg types: KClass<*>): KType? {
 private val toBase64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray()
 
 private var fromBase64: IntArray = run {
-    val fromBase64 = IntArray('z'.toInt() + 1)
+    val fromBase64 = IntArray('z'.code + 1)
     Arrays.fill(fromBase64, -1)
     for (i in 0..63)
-        fromBase64[toBase64[i].toInt()] = i
-    fromBase64['='.toInt()] = -2
+        fromBase64[toBase64[i].code] = i
+    fromBase64['='.code] = -2
     fromBase64
 }
 
@@ -82,10 +82,10 @@ fun validateBase64(s: String): String? {
     var shift = 3
     while (pos < len) {
         val c = s[pos++]
-        if (c.toInt() >= base64.size)
+        if (c.code >= base64.size)
             return "Invalid character $c encountered"
 
-        val b = base64[c.toInt()]
+        val b = base64[c.code]
         if (b == -1)
             return "Invalid character $c encountered"
 

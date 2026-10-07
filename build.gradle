@@ -1,7 +1,7 @@
 buildscript {
     ext.jackson_version = '2.20.1'
-    ext.kotlin_version = '2.3.20'
-    ext.coroutines_version = '1.10.2'
+    ext.kotlin_version = '2.4.20'
+    ext.coroutines_version = '1.11.0'
 }
 
 plugins {
@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.mslenc"
-version = "0.32.0"
+version = "0.34.0"
 
 java {
     toolchain {
@@ -39,7 +39,7 @@ dependencies {
     api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version"
     api "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:$jackson_version"
 
-    implementation("io.github.mslenc:utilsktx:1.7.0")
+    implementation("io.github.mslenc:utilsktx:1.8.0")
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
     implementation "org.jetbrains.kotlin:kotlin-reflect"

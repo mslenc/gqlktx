@@ -16,10 +16,14 @@ class {{ stateType }}(
         get() = {{ introDataType }}
 
     override suspend fun doExecuteQuery(selectionSet: List<Selection>): Map<String, Any?> {
-        return {{ queryExpr }}
+        context(context) {
+            return {{ queryExpr }}
+        }
     }
 
     override suspend fun doExecuteMutation(selectionSet: List<Selection>): Map<String, Any?> {
-        return {{ mutationExpr }}
+        context(context) {
+            return {{ mutationExpr }}
+        }
     }
 }

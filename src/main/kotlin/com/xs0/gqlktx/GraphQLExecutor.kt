@@ -19,7 +19,8 @@ enum class GqlEnginePref {
 }
 
 interface GraphQLExecutor<ROOT: Any, CTX: Any> {
-    suspend fun execute(rootObject: ROOT, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion = ScalarCoercion.JSON): Map<String, Any?>
+    context(context: CTX)
+    suspend fun execute(rootObject: ROOT, queryInput: QueryInput, scalarCoercion: ScalarCoercion = ScalarCoercion.JSON): Map<String, Any?>
 
     companion object {
         val logger = getLogger<GraphQLExecutor<*, *>>()
@@ -45,7 +46,8 @@ interface GraphQLExecutor<ROOT: Any, CTX: Any> {
             }
 
             return object : GraphQLExecutor<ROOT, CTX> {
-                override suspend fun execute(rootObject: ROOT, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
+                context(context: CTX)
+                override suspend fun execute(rootObject: ROOT, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
                     return SimpleQueryExecutor.execute(schema, rootObject, context, queryInput, scalarCoercion)
                 }
             }
@@ -66,7 +68,8 @@ interface GraphQLExecutor<ROOT: Any, CTX: Any> {
 
         private fun <ROOT: Any, CTX: Any> createCompare(a: GraphQLExecutor<ROOT, CTX>, b: GraphQLExecutor<ROOT, CTX>): GraphQLExecutor<ROOT, CTX> {
             return object : GraphQLExecutor<ROOT, CTX> {
-                override suspend fun execute(rootObject: ROOT, context: CTX, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
+                context(context: CTX)
+                override suspend fun execute(rootObject: ROOT, queryInput: QueryInput, scalarCoercion: ScalarCoercion): Map<String, Any?> {
                     val isMutation = when {
                         !queryInput.allowMutations -> false
                         else -> {
@@ -80,10 +83,10 @@ interface GraphQLExecutor<ROOT: Any, CTX: Any> {
                     }
 
                     if (isMutation)
-                        return a.execute(rootObject, context, queryInput)
+                        return a.execute(rootObject, queryInput)
 
-                    val resultA = a.execute(rootObject, context, queryInput, scalarCoercion)
-                    val resultB = b.execute(rootObject, context, queryInput, scalarCoercion)
+                    val resultA = a.execute(rootObject, queryInput, scalarCoercion)
+                    val resultB = b.execute(rootObject, queryInput, scalarCoercion)
 
                     if (resultA == resultB) {
                         println("They are equal!")

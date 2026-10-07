@@ -29,9 +29,9 @@ class ReflectedInput(
 
 fun reflectInputObject(klass: KClass<*>): ReflectedInput {
     if (klass.isAbstract || klass.isInner || klass.isSealed || klass.ignored || klass.isCompanion)
-        throw IllegalArgumentException("Input class can't be abstract, inner, sealed, ignored or companion")
+        throw IllegalArgumentException("Input class can't be abstract, inner, sealed, ignored or companion ($klass)")
     if (!klass.isPublic)
-        throw IllegalArgumentException("Input class must be public")
+        throw IllegalArgumentException("Input class must be public ($klass)")
 
     val cons = klass.primaryConstructor?.let {
         if (it.isPublic && !it.ignored) it else null
@@ -46,7 +46,7 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
         val ann = param.findAnnotation<GqlParam>()
 
         if (param.ignored)
-            throw IllegalArgumentException("Can't use @GqlIgnore on constructor parameters")
+            throw IllegalArgumentException("Can't use @GqlIgnore on constructor parameters ($klass)")
 
         val defaultValue = ann?.defaultsTo?.trimToNull()?.let {
             GraphQLParser.parseValue(it)
@@ -54,12 +54,12 @@ fun reflectInputObject(klass: KClass<*>): ReflectedInput {
 
         val description = ann?.description.trimToNull()
 
-        val type = SemiType.create(param.type) ?: throw IllegalStateException("Type of $param is unusable at this time")
+        val name = ann?.name.trimToNull() ?: param.name ?: throw IllegalStateException("Couldn't determine name of $param ($klass)")
 
-        val name = ann?.name.trimToNull() ?: param.name ?: throw IllegalStateException("Couldn't determine name of $param")
+        val type = SemiType.create(param.type) ?: throw IllegalStateException("Type of $param is unusable at this time ($name of $klass)")
 
         if (namesSeen.contains(name))
-            throw IllegalStateException("Name $name is used on multiple parameters when using $cons")
+            throw IllegalStateException("Name $name is used on multiple parameters when using $cons ($klass)")
 
         val propMode = when {
             type.kind == SemiTypeKind.MAYBE -> PropMode.MAYBE

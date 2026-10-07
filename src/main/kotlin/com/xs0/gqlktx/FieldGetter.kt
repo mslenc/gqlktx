@@ -26,6 +26,7 @@ enum class ParamGetterMode {
 
 interface FieldGetter<in CTX> {
     val isSuspending: Boolean
+    val usesContext: Boolean
     val publicType: SemiType
     val name: String
     val publicParams: Map<String, PublicParamInfo>
@@ -42,7 +43,7 @@ class FieldGetterRegularFunction<in CTX>(
     override val publicType: SemiType,
     override val name: String,
     private val callable: KCallable<*>,
-    private val params: Array<ParamInfo<CTX>>,
+    private val params: Array<ParamInfo>,
     override val publicParams: Map<String, PublicParamInfo>,
     override val description: String?,
     override val isDeprecated: Boolean,
@@ -56,6 +57,9 @@ class FieldGetterRegularFunction<in CTX>(
     override val isSuspending: Boolean
         get() = false
 
+    override val usesContext: Boolean
+        get() = params.any { it.kind == ParamKind.CONTEXT }
+
     override suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         val args = arrayOfNulls<Any?>(params.size)
 
@@ -65,7 +69,7 @@ class FieldGetterRegularFunction<in CTX>(
             args[i] = when (param.kind) {
                 ParamKind.THIS -> receiver
                 ParamKind.PUBLIC -> arguments[param.name]
-                ParamKind.CONTEXT -> param.ctxGetter!!.invoke(context)
+                ParamKind.CONTEXT -> context
                 ParamKind.NULL -> null
 
                 else ->
@@ -90,7 +94,7 @@ class FieldGetterRegularFunction<in CTX>(
             sb.append(callable.name).append('(')
             var first = true
             for (param in params) {
-                if (param.kind == ParamKind.THIS)
+                if (param.kind == ParamKind.THIS || param.kind == ParamKind.CONTEXT)
                     continue
 
                 if (first) {
@@ -101,9 +105,6 @@ class FieldGetterRegularFunction<in CTX>(
 
                 if (param.kind == ParamKind.NULL) {
                     sb.append("null")
-                } else
-                if (param.kind == ParamKind.CONTEXT) {
-                    sb.append(param.ctxGetter!!.codeGen(ctxExpr))
                 } else {
                     sb.append("_" + param.name)
                 }
@@ -122,7 +123,7 @@ class FieldGetterCoroutine<in CTX>(
     override val publicType: SemiType,
     override val name: String,
     private val callable: KCallable<*>,
-    private val params: Array<ParamInfo<CTX>>,
+    private val params: Array<ParamInfo>,
     override val publicParams: Map<String, PublicParamInfo>,
     override val description: String?,
     override val isDeprecated: Boolean,
@@ -136,6 +137,9 @@ class FieldGetterCoroutine<in CTX>(
     override val isSuspending: Boolean
         get() = true
 
+    override val usesContext: Boolean
+        get() = params.any { it.kind == ParamKind.CONTEXT }
+
     override suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutineUninterceptedOrReturn { cont ->
             val args = arrayOfNulls<Any?>(params.size)
@@ -146,7 +150,7 @@ class FieldGetterCoroutine<in CTX>(
                 args[i] = when (param.kind) {
                     ParamKind.THIS -> receiver
                     ParamKind.PUBLIC -> arguments[param.name]
-                    ParamKind.CONTEXT -> param.ctxGetter!!.invoke(context)
+                    ParamKind.CONTEXT -> context
                     ParamKind.NULL -> null
                     ParamKind.CONTINUATION -> cont
                 }
@@ -170,7 +174,7 @@ class FieldGetterCoroutine<in CTX>(
             sb.append(callable.name).append('(')
             var first = true
             for (param in params) {
-                if (param.kind == ParamKind.THIS || param.kind == ParamKind.CONTINUATION)
+                if (param.kind == ParamKind.THIS || param.kind == ParamKind.CONTINUATION || param.kind == ParamKind.CONTEXT)
                     continue
 
                 if (first) {
@@ -181,9 +185,6 @@ class FieldGetterCoroutine<in CTX>(
 
                 if (param.kind == ParamKind.NULL) {
                     sb.append("null")
-                } else
-                if (param.kind == ParamKind.CONTEXT) {
-                    sb.append(param.ctxGetter!!.codeGen(ctxExpr))
                 } else {
                     sb.append("_" + param.name)
                 }
@@ -201,7 +202,7 @@ class FieldGetterCompletableFuture<in CTX>(
     override val publicType: SemiType,
     override val name: String,
     private val callable: KCallable<*>,
-    private val params: Array<ParamInfo<CTX>>,
+    private val params: Array<ParamInfo>,
     override val publicParams: Map<String, PublicParamInfo>,
     override val description: String?,
     override val isDeprecated: Boolean,
@@ -215,6 +216,9 @@ class FieldGetterCompletableFuture<in CTX>(
     override val isSuspending: Boolean
         get() = true
 
+    override val usesContext: Boolean
+        get() = params.any { it.kind == ParamKind.CONTEXT }
+
     override suspend fun invoke(receiver: Any, context: CTX, arguments: Map<String, Any?>): Any? {
         return suspendCoroutine { cont ->
             val args = arrayOfNulls<Any?>(params.size)
@@ -225,7 +229,7 @@ class FieldGetterCompletableFuture<in CTX>(
                 args[i] = when (param.kind) {
                     ParamKind.THIS -> receiver
                     ParamKind.PUBLIC -> arguments[param.name]
-                    ParamKind.CONTEXT -> param.ctxGetter!!.invoke(context)
+                    ParamKind.CONTEXT -> context
                     ParamKind.NULL -> null
 
                     else ->
@@ -264,7 +268,7 @@ class FieldGetterCompletableFuture<in CTX>(
             sb.append(callable.name).append('(')
             var first = true
             for (param in params) {
-                if (param.kind == ParamKind.THIS || param.kind == ParamKind.CONTINUATION)
+                if (param.kind == ParamKind.THIS || param.kind == ParamKind.CONTINUATION || param.kind == ParamKind.CONTEXT)
                     continue
 
                 if (first) {
@@ -275,9 +279,6 @@ class FieldGetterCompletableFuture<in CTX>(
 
                 if (param.kind == ParamKind.NULL) {
                     sb.append("null")
-                } else
-                if (param.kind == ParamKind.CONTEXT) {
-                    sb.append(param.ctxGetter!!.codeGen(ctxExpr))
                 } else {
                     sb.append("_" + param.name)
                 }

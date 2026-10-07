@@ -5,6 +5,7 @@ import com.xs0.gqlktx.QueryException
 import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.exec.FieldPath
+import com.xs0.gqlktx.exec.setGqlExtensions
 import com.xs0.gqlktx.parser.GraphQLParser
 import com.xs0.gqlktx.schema.builder.TypeKind
 import com.xs0.gqlktx.utils.QueryInput
@@ -53,17 +54,24 @@ abstract class BaseGqlState(queryInput: QueryInput) {
 
     suspend fun executeRequest(): Map<String, Any?> {
         var data: Map<String, Any?>?
+        val extensions = LinkedHashMap<String, Any?>()
+
+        setGqlExtensions(extensions)
         try {
-            data = doExecuteRequest()
-        } catch (e: Exception) {
-            handleException(e)
-            data = null
+            try {
+                data = doExecuteRequest()
+            } catch (e: Exception) {
+                handleException(e)
+                data = null
+            }
+        } finally {
+            setGqlExtensions(null)
         }
 
-        return createResponse(data, errors)
+        return createResponse(data, errors, extensions)
     }
 
-    private fun createResponse(data: Map<String, Any?>?, errors: List<Any?>?): Map<String, Any?> {
+    private fun createResponse(data: Map<String, Any?>?, errors: List<Any?>?, extensions: Map<String, Any?>): Map<String, Any?> {
         val result = LinkedHashMap<String, Any?>()
 
         if (data != null && data.isNotEmpty())
@@ -71,6 +79,10 @@ abstract class BaseGqlState(queryInput: QueryInput) {
 
         if (errors != null && errors.isNotEmpty())
             result["errors"] = errors
+
+        if (extensions.isNotEmpty())
+            result["extensions"] = extensions
+
 
         return result
     }

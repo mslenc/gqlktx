@@ -2,6 +2,7 @@ package schema1
 
 import com.xs0.gqlktx.GqlField
 import com.xs0.gqlktx.GqlInterface
+import com.xs0.gqlktx.exec.gqlExtensions
 import com.xs0.gqlktx.trimToNull
 import com.xs0.gqlktx.utils.Maybe
 import com.xs0.gqlktx.utils.NodeId
@@ -99,6 +100,13 @@ object QueryRoot {
         val future = CompletableFuture<Collection<Tag>>()
         future.complete(Data.tags.values)
         return future
+    }
+
+    @GqlField
+    fun getAddWarning(warning: String): String {
+        val warnings = gqlExtensions().getOrPut("warnings") { ArrayList<String>() } as MutableList<String>
+        warnings.add(warning.uppercase())
+        return warning
     }
 }
 

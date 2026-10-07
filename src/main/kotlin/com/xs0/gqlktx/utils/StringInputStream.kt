@@ -10,7 +10,7 @@ class StringInputStream(private val s: String) : InputStream() {
         return if (pos >= len) {
             -1
         } else {
-            s[pos++].toInt() and 255
+            s[pos++].code and 255
         }
     }
 }

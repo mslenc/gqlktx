@@ -64,6 +64,10 @@ class GJavaFloatArrayType<CTX: Any>(override val gqlType: GType, override val el
         return false
     }
 
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
+
     companion object {
         val NON_NULL_FLOAT_TYPE = Float::class.nonNullType()
     }

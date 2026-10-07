@@ -64,6 +64,10 @@ data class GJavaIntArrayType<CTX: Any>(override val gqlType: GType, override val
         return false
     }
 
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
+
     companion object {
         val NON_NULL_INT_TYPE = Int::class.nonNullType()
     }

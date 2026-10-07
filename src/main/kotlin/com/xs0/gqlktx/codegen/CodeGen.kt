@@ -20,6 +20,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
+import kotlin.to
 
 const val MAX_FIELDS_PER_FUNCTION = 80
 
@@ -68,6 +69,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
         schema = AutoBuilder(schemaSource, contextType).build()
 
         determineSuspendings()
+        determineContexting()
 
         for (type in schema.allBaseTypes) {
             if (type is GInterfaceType) {
@@ -458,6 +460,13 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
         val types = group.map { t ->
             val info = t.outputExportInfo(this)
 
+            if (info.funHasContext) {
+                imports.add(Pair(
+                    contextType.packageName() ?: throw IllegalStateException("Missing package for context type $contextType"),
+                    contextType.simpleName ?: throw IllegalStateException("Missing simple name for context type $contextType")
+                ))
+            }
+
             val concurrent = info.funIsSuspending && !isMutationRoot
             val tc = HashMap<String, Any?>()
             tc["typeName"] = t.name.codeGenTypeEx
@@ -467,6 +476,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
             tc["funReturnType"] = info.funReturnType
             tc["gqlName"] = t.name.gqlName
             tc["suspending"] = info.funIsSuspending
+            tc["needsContext"] = info.funHasContext
             tc["concurrent"] = concurrent
             tc["isQueryRoot"] = info.kind == OBJECT && isQueryRoot
             tc["anyNeedsCoercion"] = false
@@ -589,6 +599,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
                 w.addImport(i.first, i.second)
 
             context["types"] = types
+            context["contextClass"] = contextType.simpleName
 
             template("output/object").evaluate(w, context)
         }
@@ -604,6 +615,13 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
         val types = group.map { t ->
             val info = t.outputExportInfo(this)
 
+            if (info.funHasContext) {
+                imports.add(Pair(
+                    contextType.packageName() ?: throw IllegalStateException("Missing package for context type $contextType"),
+                    contextType.simpleName ?: throw IllegalStateException("Missing simple name for context type $contextType")
+                ))
+            }
+
             val concurrent = info.funIsSuspending
             val tc = HashMap<String, Any?>()
             tc["typeName"] = t.name.codeGenTypeEx
@@ -612,6 +630,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
             tc["funReturnType"] = info.funReturnType
             tc["gqlName"] = t.name.gqlName
             tc["suspending"] = info.funIsSuspending
+            tc["needsContext"] = info.funHasContext
             tc["concurrent"] = concurrent
             tc["isQueryRoot"] = false
             tc["anyNeedsCoercion"] = false
@@ -685,6 +704,7 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
                 w.addImport(i.first, i.second)
 
             context["types"] = types
+            context["contextClass"] = contextType.simpleName
 
             template("output/interface").evaluate(w, context)
         }
@@ -766,6 +786,20 @@ class CodeGen<SCHEMA: Any, CTX: Any> private constructor(val schemaSource: KClas
             any = false
             for (type in allTypes) {
                 if (type.processSuspendingDetermination(this)) {
+                    any = true
+                }
+            }
+        }
+    }
+
+    fun determineContexting() {
+        val allTypes = schema.types.values.toList()
+
+        var any = true
+        while (any) {
+            any = false
+            for (type in allTypes) {
+                if (type.processContextDetermination(this)) {
                     any = true
                 }
             }

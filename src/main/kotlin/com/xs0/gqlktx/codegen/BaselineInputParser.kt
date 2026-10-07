@@ -1,10 +1,22 @@
 package com.xs0.gqlktx.codegen
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.BigIntegerNode
+import com.fasterxml.jackson.databind.node.BooleanNode
+import com.fasterxml.jackson.databind.node.DecimalNode
+import com.fasterxml.jackson.databind.node.IntNode
+import com.fasterxml.jackson.databind.node.LongNode
+import com.fasterxml.jackson.databind.node.NullNode
+import com.fasterxml.jackson.databind.node.NumericNode
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.jackson.databind.node.TextNode
 import com.xs0.gqlktx.ValidationException
 import com.xs0.gqlktx.dom.*
 import com.xs0.gqlktx.schema.builder.ResolvedName
 import com.xs0.gqlktx.utils.NodeId
 import java.math.BigDecimal
+import java.math.BigInteger
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -652,6 +664,100 @@ object BaselineInputParser {
             is ValueNull -> err("Expected a list of Floats, but found null instead.")
             is Variable -> parseFloatArrayNotNull(variables[value.name] ?: err("Missing non-nullable variable ${ value.name }.") , variables)
             else -> err("Expected a list of Floats, but got something else.")
+        }
+    }
+
+    fun parseObjectNode(value: ValueOrVar, variables: Map<String, ValueOrNull>): ObjectNode? {
+        val valObj = when (value) {
+            is ValueObject -> value
+            is ValueNull -> return null
+            is Variable -> return parseObjectNode(variables[value.name] ?: return null, variables)
+            else -> err("Expected an object, but got something else.")
+        }
+
+        val jsonObj = INTRO_JSON_MAPPER.createObjectNode()
+
+        for ((key, value) in valObj.elements) {
+            jsonObj.set<JsonNode>(key, parseJsonAnything(value, variables))
+        }
+
+        return jsonObj
+    }
+
+    fun parseObjectNodeNotNull(value: ValueOrVar, variables: Map<String, ValueOrNull>): ObjectNode {
+        val valObj = when (value) {
+            is ValueObject -> value
+            is ValueNull -> err("Expected an object, but found null instead.")
+            is Variable -> return parseObjectNodeNotNull(variables[value.name] ?: err("Missing non-nullable variable ${ value.name }."), variables)
+            else -> err("Expected an object, but got something else.")
+        }
+
+        val jsonObj = INTRO_JSON_MAPPER.createObjectNode()
+
+        for ((key, value) in valObj.elements) {
+            jsonObj.set<JsonNode>(key, parseJsonAnything(value, variables))
+        }
+
+        return jsonObj
+    }
+
+    fun parseArrayNode(value: ValueOrVar, variables: Map<String, ValueOrNull>): ArrayNode? {
+        val valList = when (value) {
+            is ValueList -> value
+            is ValueNull -> return null
+            is Variable -> return parseArrayNode(variables[value.name] ?: return null, variables)
+            else -> err("Expected an array, but got something else.")
+        }
+
+        val jsonList = INTRO_JSON_MAPPER.createArrayNode()
+
+        for (value in valList.elements) {
+            jsonList.add(parseJsonAnything(value, variables))
+        }
+
+        return jsonList
+    }
+
+    fun parseArrayNodeNotNull(value: ValueOrVar, variables: Map<String, ValueOrNull>): ArrayNode {
+        val valList = when (value) {
+            is ValueList -> value
+            is ValueNull -> err("Expected an array, but found null instead.")
+            is Variable -> return parseArrayNodeNotNull(variables[value.name] ?: err("Missing non-nullable variable ${ value.name }."), variables)
+            else -> err("Expected an array, but got something else.")
+        }
+
+        val jsonList = INTRO_JSON_MAPPER.createArrayNode()
+
+        for (value in valList.elements) {
+            jsonList.add(parseJsonAnything(value, variables))
+        }
+
+        return jsonList
+    }
+
+    fun parseJsonAnything(value: ValueOrVar, variables: Map<String, ValueOrNull>): JsonNode {
+        return when (value) {
+            is ValueNull -> NullNode.instance
+            is ValueString -> TextNode(value.value)
+            is ValueNumber -> parseJsonNumber(value.value)
+            is ValueBool -> BooleanNode.valueOf(value.value)
+            is ValueEnum -> TextNode(value.value)
+            is ValueList -> parseArrayNodeNotNull(value, variables)
+            is ValueObject -> parseObjectNodeNotNull(value, variables)
+            is Variable -> parseJsonAnything(variables[value.name] ?: return NullNode.instance, variables)
+        }
+    }
+
+    fun parseJsonNumber(s: String): NumericNode {
+        if (s.contains(".") || s.contains("e") || s.contains("E"))
+            return DecimalNode(s.toBigDecimal())
+
+        val bi = BigInteger(s)
+        val bitLength = bi.bitLength()
+        return when {
+            bitLength <= 31 -> IntNode(bi.intValueExact())
+            bitLength <= 63 -> LongNode(bi.longValueExact())
+            else -> BigIntegerNode(bi)
         }
     }
 

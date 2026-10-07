@@ -65,6 +65,10 @@ data class GJavaBooleanArrayType<CTX: Any>(override val gqlType: GType, override
         return false
     }
 
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
+
     companion object {
         val NON_NULL_BOOL_TYPE = Boolean::class.nonNullType()
         val NULLABLE_BOOL_TYPE = Boolean::class.nullableType()

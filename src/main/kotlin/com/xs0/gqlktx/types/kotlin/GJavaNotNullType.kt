@@ -87,4 +87,8 @@ data class GJavaNotNullType<CTX : Any>(override val name: ResolvedName, override
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return innerType.suspendingOutput
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return innerType.hasContext
+    }
 }

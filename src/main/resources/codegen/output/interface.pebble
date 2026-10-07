@@ -9,7 +9,8 @@ import kotlinx.coroutines.*
 
 {% if type.kind == "INTERFACE" %}
 
-{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
+{% if type.suspending %}suspend {% endif %}fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {
     return when (obj) {
         null -> null
         {% for subType in type.subTypes %}
@@ -21,14 +22,15 @@ import kotlinx.coroutines.*
 
 {% elseif type.kind == "NOT_NULL" %}
 
-{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
+{% if type.suspending %}suspend {% endif %}fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return {{ type.innerExpr }} ?: throw NullPointerException("executeGQL{{ type.funName }}")
 }
 
 {% elseif type.kind == "ARRAY_OF" %}
 
 {% if type.suspending %}
-
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
     if (obj == null)
         return@supervisorScope null
@@ -41,7 +43,7 @@ suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ 
 }
 
 {% else %}
-
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return obj?.mapIndexed { i, el ->
         {{ type.innerExpr }}
@@ -54,6 +56,7 @@ fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typ
 
 {% if type.suspending %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
     if (obj == null)
         return@supervisorScope null
@@ -68,6 +71,7 @@ suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ 
 
 {% else %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return obj?.mapIndexed { i, el ->
         {{ type.innerExpr }}

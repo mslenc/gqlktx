@@ -43,6 +43,7 @@ data class GJavaObjectType<CTX: Any>(override val name: ResolvedName, override v
             funReturnType = "Map<String, Any?>?",
             funReturnTypeNN = "Map<String, Any?>",
             funIsSuspending = anythingSuspends(gen),
+            funHasContext = anythingHasContext(gen),
             outPackageName = packageName,
             "executeGQL" + name.codeGenFunName + "(SUBSEL, SUBOBJ, SUBPATH, state)",
             name.imports,
@@ -52,5 +53,9 @@ data class GJavaObjectType<CTX: Any>(override val name: ResolvedName, override v
 
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return fields.values.any { it.isSuspending || gen.schema.getJavaType(it.publicType.sourceType).suspendingOutput  }
+    }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return fields.values.any { it.usesContext || gen.schema.getJavaType(it.publicType.sourceType).hasContext  }
     }
 }

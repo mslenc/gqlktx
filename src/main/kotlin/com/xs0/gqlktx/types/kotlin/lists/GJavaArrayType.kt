@@ -100,4 +100,8 @@ class GJavaArrayType<CTX: Any>(override val type: KType, override val elementTyp
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return elementType.suspendingOutput
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return elementType.hasContext
+    }
 }

@@ -3,11 +3,8 @@ package com.xs0.gqlktx.types.kotlin
 import com.xs0.gqlktx.codegen.*
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.exec.InputVarParser
-import com.xs0.gqlktx.schema.builder.nonNullType
 import com.xs0.gqlktx.schema.builder.nullableType
-import com.xs0.gqlktx.types.gql.GBaseType
 import kotlin.reflect.KClass
-import kotlin.reflect.KType
 
 abstract class GJavaImplementableType<CTX: Any> protected constructor() : GJavaType<CTX>() {
     abstract val implementations: List<KClass<*>>
@@ -28,7 +25,8 @@ abstract class GJavaImplementableType<CTX: Any> protected constructor() : GJavaT
             funName = name.codeGenFunName,
             funReturnType = "Map<String, Any?>?",
             funReturnTypeNN = "Map<String, Any?>",
-            anythingSuspends(gen),
+            funIsSuspending = anythingSuspends(gen),
+            funHasContext = anythingHasContext(gen),
             outPackageName = packageName,
             "executeGQL" + name.codeGenFunName + "(SUBSEL, SUBOBJ, SUBPATH, state)",
             name.imports,
@@ -39,6 +37,12 @@ abstract class GJavaImplementableType<CTX: Any> protected constructor() : GJavaT
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return implementations.any {
             gen.schema.getJavaType(it.nullableType()).suspendingOutput
+        }
+    }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return implementations.any {
+            gen.schema.getJavaType(it.nullableType()).hasContext
         }
     }
 }

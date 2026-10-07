@@ -1,6 +1,5 @@
 package com.xs0.gqlktx.codegen
 
-import java.io.StringWriter
 import java.io.Writer
 import kotlin.reflect.KClass
 

@@ -58,4 +58,8 @@ abstract class GJavaScalarLikeType<CTX: Any> : GJavaType<CTX>() {
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return false
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
 }

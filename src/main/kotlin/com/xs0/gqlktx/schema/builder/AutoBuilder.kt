@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.schema.builder
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.github.mslenc.utils.getLogger
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.codegen.packageName
@@ -41,13 +42,12 @@ fun <T: Any> KClass<T>.nonNullType(): KType {
     return createType(nullable = false)
 }
 
-class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KClass<CTX>) {
+class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, private val contextType: KClass<CTX>) {
 
     private val schema = SchemaBuilder(schema, contextType)
     private val latentChecks = ArrayList<() -> Unit>()
     private var classPathScanSpec: Array<out String> = arrayOf()
     private var allowIntrospectionNames: Boolean = false
-    private val contextTypes = findContextTypes(contextType)
     private val cachedOutputMethods = HashMap<KClass<*>, Map<String, FieldGetter<CTX>>>()
 
     private val classGraphCleanUp = AtomicReference<ScanResult?>()
@@ -71,7 +71,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
     fun scanOutputMethods(klass: KClass<*>): Map<String, FieldGetter<CTX>> {
         return cachedOutputMethods.computeIfAbsent(klass) {
-            findFields(it, contextTypes)
+            findFields(it, contextType)
         }
     }
 
@@ -118,6 +118,7 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
         val TIME = getOrCreateScalarType("Time", ScalarUtils::validateTime)
         val DATETIME = getOrCreateScalarType("DateTime", ScalarUtils::validateDateTime)
         val INSTANT = getOrCreateScalarType("Instant", ScalarUtils::validateInstant)
+        val JSON_OBJECT = getOrCreateScalarType("JsonObject", ScalarUtils::validateJsonObject)
 
         val javaByte = maybeAdd(GJavaByte(Byte::class.nonNullType(), INT.notNull()))
         val javaShort = maybeAdd(GJavaShort(Short::class.nonNullType(), INT.notNull()))
@@ -174,6 +175,9 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         maybeAdd(GJavaInstant(Instant::class.nullableType(), INSTANT))
         maybeAdd(GJavaInstant(Instant::class.nonNullType(), INSTANT.notNull()))
+
+        maybeAdd(GJavaObjectNode(ObjectNode::class.nullableType(), JSON_OBJECT))
+        maybeAdd(GJavaObjectNode(ObjectNode::class.nonNullType(), JSON_OBJECT.notNull()))
     }
 
     internal fun setUpIntrospectionTypes() {
@@ -244,7 +248,11 @@ class AutoBuilder<SCHEMA: Any, CTX: Any>(schema: KClass<SCHEMA>, contextType: KC
 
         var baseType: GJavaType<CTX>? = schema.getJavaType(baseClass)
         if (baseType == null)
-            baseType = buildBaseType(baseClass, isInput)
+            baseType = try {
+                buildBaseType(baseClass, isInput)
+            } catch (e: Exception) {
+                throw IllegalStateException("Failed to build base type $baseClass (isInput=$isInput)", e)
+            }
 
         constructWrappedTypes(parsedType, baseType)
     }

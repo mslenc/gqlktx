@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalContextParameters::class)
 package com.xs0.gqlktx
 
 import com.xs0.gqlktx.dom.Value
@@ -41,20 +42,18 @@ val KClass<*>.ignored: Boolean get() = findAnnotation<GqlIgnore>() != null
 val KCallable<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
 val KClass<*>.isPublic: Boolean get() = this.visibility == KVisibility.PUBLIC
 
-
-class ParamInfo<CTX> private constructor(
+class ParamInfo private constructor(
     val name: String,
     val kind: ParamKind,
     val semiType: SemiType?,
-    val ctxGetter: SyncInvokable<CTX>?
 ) {
-    constructor(name: String, semiType: SemiType) : this(name, ParamKind.PUBLIC, semiType, null)
-    constructor(ctxGetter: SyncInvokable<CTX>): this("<ctx>", ParamKind.CONTEXT, null, ctxGetter)
+    constructor(name: String, semiType: SemiType) : this(name, ParamKind.PUBLIC, semiType)
 
-    constructor(kind: ParamKind) : this(kind.toString(), kind, null, null) {
+    constructor(kind: ParamKind) : this(kind.toString(), kind, null) {
         when (kind) {
             ParamKind.THIS,
             ParamKind.CONTINUATION,
+            ParamKind.CONTEXT,
             ParamKind.NULL ->
                 return
             else ->
@@ -63,24 +62,27 @@ class ParamInfo<CTX> private constructor(
     }
 
     companion object {
-        fun <CTX> create(param: KParameter, contextTypes: ContextTypes<CTX>): ParamInfo<CTX>? {
+        val CONTEXT = ParamInfo(ParamKind.CONTEXT)
+        val THIS = ParamInfo(ParamKind.THIS)
+        val NULL = ParamInfo(ParamKind.NULL)
+        val CONTINUATION = ParamInfo(ParamKind.CONTINUATION)
+
+        fun <CTX: Any> create(param: KParameter, contextType: KClass<CTX>): ParamInfo? {
             if (param.kind == KParameter.Kind.INSTANCE || param.kind == KParameter.Kind.EXTENSION_RECEIVER) {
-                return ParamInfo(ParamKind.THIS)
+                return THIS
             }
 
             if (param.ignored) {
-                return if (param.type.isMarkedNullable) {
-                    ParamInfo(ParamKind.NULL)
-                } else {
-                    null
-                }
+                return NULL.takeIf { param.type.isMarkedNullable }
             }
 
-            val contextType = contextTypes[param.type.classifier]
-            if (contextType != null) {
-                return ParamInfo(contextType)
+            if (param.kind == KParameter.Kind.CONTEXT) {
+                return CONTEXT.takeIf { param.type.classifier == contextType }
             }
 
+            if (param.type.classifier == contextType) {
+                throw IllegalStateException("Parameter $param should be moved to context(), other types of injection are no longer supported.")
+            }
 
             var semiType = SemiType.create(param.type)
             if (semiType != null) {
@@ -137,7 +139,7 @@ inline fun <T> nullOrThrowIf(condition: Boolean, msg: () -> String): T? {
 
 
 
-fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contextTypes: ContextTypes<CTX>): FieldGetter<CTX>? {
+fun <CTX: Any> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contextType: KClass<CTX>): FieldGetter<CTX>? {
     if (member.visibility !== KVisibility.PUBLIC)
         return null
 
@@ -187,13 +189,13 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
             return nullOrThrowIf(forced) { "Member $member has a return type that isn't supported"}
     }
 
-    val params = ArrayList<ParamInfo<CTX>>()
+    val params = ArrayList<ParamInfo>()
     val publicParams = LinkedHashMap<String, PublicParamInfo>()
     val parsedRetType = if (retType != null) SemiType.create(retType) else null
 
     nextParam@
     for (param in member.parameters) {
-        val parsedParam = ParamInfo.create(param, contextTypes)
+        val parsedParam = ParamInfo.create(param, contextType)
         if (parsedParam == null)
             return nullOrThrowIf(forced) { "Parameter $param is not supported" }
 
@@ -225,7 +227,7 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
     val name = extractFieldName(member, parsedRetType.isBoolean) ?: return null
 
     if (isSuspend)
-        params.add(ParamInfo(ParamKind.CONTINUATION))
+        params.add(ParamInfo.CONTINUATION)
 
     val paramArray = params.toTypedArray()
 
@@ -242,14 +244,14 @@ fun <CTX> processFieldFunc(member: KCallable<*>, instanceType: KClass<*>, contex
 
 
 
-fun <CTX> findFields(klass: KClass<*>, ctxTypes: ContextTypes<CTX>): Map<String, FieldGetter<CTX>> {
+fun <CTX: Any> findFields(klass: KClass<*>, ctxType: KClass<CTX>): Map<String, FieldGetter<CTX>> {
     val result = LinkedHashMap<String, FieldGetter<CTX>>()
 
     for (callable in klass.members) {
         if (callable.ignored)
             continue
 
-        val field = processFieldFunc(callable, klass, ctxTypes)
+        val field = processFieldFunc(callable, klass, ctxType)
         if (field != null) {
             result.put(field.name, field).let { prev->
                 if (prev != null)

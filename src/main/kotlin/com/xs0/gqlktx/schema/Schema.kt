@@ -29,19 +29,19 @@ class Schema<SCHEMA, CTX: Any>(
                 SemiType.create(GqlIntroSchema::class.createType(nullable=false)) ?: throw Error("Couldn't process __schema type"),
                 "__schema",
                 GqlIntroSchema::class.findMethod("self"),
-                arrayOf(ParamInfo(ParamKind.THIS)),
+                arrayOf(ParamInfo.THIS),
                 emptyMap(),
                 null, false, null
             )
 
             val nonNullString = SemiType.create(String::class.createType(nullable = false))!!
-            val nameParam = ParamInfo<CTX>("name", nonNullString)
+            val nameParam = ParamInfo("name", nonNullString)
 
             INTRO_TYPE = FieldGetterRegularFunction(
                 SemiType.create(GqlIntroType::class.createType(nullable=true)) ?: throw Error("Couldn't process __type"),
                 "__type",
                 GqlIntroSchema::class.findMethod("type"),
-                arrayOf(ParamInfo(ParamKind.THIS), nameParam),
+                arrayOf(ParamInfo.THIS, nameParam),
                 mapOf("name" to PublicParamInfo("name", nonNullString, null, null)),
                 null, false, null
             )
@@ -50,7 +50,7 @@ class Schema<SCHEMA, CTX: Any>(
                 nonNullString,
                 "__typename",
                 Any::class.findMethod("toString"),
-                arrayOf(ParamInfo(ParamKind.THIS)),
+                arrayOf(ParamInfo.THIS),
                 emptyMap(),
                 null, false, null
             )

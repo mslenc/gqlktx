@@ -16,6 +16,7 @@ abstract class GJavaType<CTX: Any> {
     abstract val gqlType: GType
 
     var suspendingOutput: Boolean = false
+    var hasContext: Boolean = false
 
     fun processSuspendingDetermination(gen: CodeGen<*, CTX>): Boolean {
         if (suspendingOutput)
@@ -29,7 +30,20 @@ abstract class GJavaType<CTX: Any> {
         }
     }
 
-    abstract protected fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean
+    fun processContextDetermination(gen: CodeGen<*, CTX>): Boolean {
+        if (hasContext)
+            return false
+
+        if (anythingHasContext(gen)) {
+            hasContext = true
+            return true
+        } else {
+            return false
+        }
+    }
+
+    protected abstract fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean
+    protected abstract fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean
 
     open fun isNullAllowed(): Boolean {
         return type.isMarkedNullable

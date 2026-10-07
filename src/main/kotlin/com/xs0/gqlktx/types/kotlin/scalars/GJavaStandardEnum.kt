@@ -79,6 +79,7 @@ data class GJavaStandardEnum<CTX: Any>(override val name: ResolvedName, override
             funReturnType = "Any?",
             funReturnTypeNN = "Any",
             funIsSuspending = false,
+            funHasContext = false,
             packageName,
             funName + "(VALUE, coercion)",
             name.imports,

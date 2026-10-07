@@ -54,7 +54,8 @@ private fun collectFields{{ type.funName }}(selectionSet: List<Selection>, visit
     return out
 }
 
-{% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {% if type.concurrent %}= supervisorScope {% endif %}{
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
+{% if type.suspending %}suspend {% endif %}fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): Map<String, Any?>? {% if type.concurrent %}= supervisorScope {% endif %}{
     if (obj == null)
     {% if type.concurrent %}
         return@supervisorScope null
@@ -139,6 +140,7 @@ private fun collectFields{{ type.funName }}(selectionSet: List<Selection>, visit
 
 {% if type.splitFields %}
     {% for chunk in type.fieldChunks %}
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 private {% if type.suspending %}suspend {% endif %}fun {% if type.concurrent %}CoroutineScope.{% endif %}executeGQL{{ type.funName }}_{{ chunk.i }}(jsonResult: LinkedHashMap<String, Any?>, responseKey: String, fields: List<SelectionField>, obj: {{ type.typeNameNN }}, parentPath: FieldPath, state: {{ stateType }}{% if type.concurrent %}, futures: ArrayList<Deferred<Pair<String, Any?>>>{%endif%}) {
 
     {% if type.anyNeedsCoercion %}
@@ -157,6 +159,7 @@ private {% if type.suspending %}suspend {% endif %}fun {% if type.concurrent %}C
 
 {% elseif type.kind == "NOT_NULL" %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 {% if type.suspending %}suspend{% endif %} fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return {{ type.innerExpr }} ?: throw NullPointerException("executeGQL{{ type.funName }}")
 }
@@ -165,6 +168,7 @@ private {% if type.suspending %}suspend {% endif %}fun {% if type.concurrent %}C
 
 {% if type.suspending %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
     if (obj == null)
         return@supervisorScope null
@@ -178,6 +182,7 @@ suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ 
 
 {% else %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return obj?.mapIndexed { i, el ->
         {{ type.innerExpr }}
@@ -190,6 +195,7 @@ fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typ
 
 {% if type.suspending %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} = supervisorScope {
     if (obj == null)
         return@supervisorScope null
@@ -204,6 +210,7 @@ suspend fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ 
 
 {% else %}
 
+{% if type.needsContext %}context(context: {{ contextClass }}){% endif %}
 fun executeGQL{{ type.funName }}(selectionSet: List<Selection>, obj: {{ type.typeName }}, parentPath: FieldPath, state: {{ stateType }}): {{ type.funReturnType }} {
     return obj?.mapIndexed { i, el ->
         {{ type.innerExpr }}

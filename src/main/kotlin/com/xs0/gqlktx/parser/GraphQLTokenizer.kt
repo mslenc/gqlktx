@@ -122,7 +122,7 @@ class GraphQLTokenizer(private val chars: CharStream) {
                 if (hadZeroFirst)
                     throw ParseException("Numbers can't start with 0", row, col)
 
-                if (d == '0'.toInt() && !hadDigits)
+                if (d == '0'.code && !hadDigits)
                     hadZeroFirst = true
 
                 hadDigits = true
@@ -212,9 +212,9 @@ class GraphQLTokenizer(private val chars: CharStream) {
 
             raw.appendCodePoint(c)
 
-            if (c == '"'.toInt()) {
+            if (c == '"'.code) {
                 return Token(row, col, STRING, raw.toString(), value.toString())
-            } else if (c == '\\'.toInt()) {
+            } else if (c == '\\'.code) {
                 val esc = chars.consume { GChar.isValidEscapeFirstChar(it) }
                 if (esc < 0) {
                     throw ParseException("Invalid escape sequence", cRow, cCol)

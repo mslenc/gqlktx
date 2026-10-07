@@ -64,6 +64,10 @@ data class GJavaShortArrayType<CTX: Any>(override val gqlType: GType, override v
         return false
     }
 
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
+
     companion object {
         val NON_NULL_SHORT_TYPE = Short::class.nonNullType()
     }

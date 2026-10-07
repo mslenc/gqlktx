@@ -1,5 +1,8 @@
 package com.xs0.gqlktx.testschemas.inputs
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.BooleanNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.xs0.gqlktx.*
 import com.xs0.gqlktx.utils.Maybe
 import java.lang.StringBuilder
@@ -32,6 +35,18 @@ data class ItemUpdateInput(
     val itemId: String,
     val name: String?,
     val description: Maybe<String?>?
+)
+
+data class GenericThing(
+    val type: String,
+    val id: String,
+    val props: ObjectNode
+)
+
+data class GenericThingInput(
+    val type: String,
+    val id: String,
+    val props: ObjectNode
 )
 
 class QueryRoot {
@@ -80,6 +95,13 @@ class QueryRoot {
     @GqlField
     fun getConcat(a: String?, b: String?): String {
         return "$a-$b"
+    }
+
+    @GqlField
+    fun getGenericThingUpdate(input: GenericThingInput): GenericThing {
+        val updated = input.props.deepCopy()
+        updated.set<JsonNode>("updated", BooleanNode.TRUE)
+        return GenericThing(input.type, input.id, updated)
     }
 }
 

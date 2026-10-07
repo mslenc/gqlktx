@@ -1,5 +1,6 @@
 package com.xs0.gqlktx.codegen
 
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.xs0.gqlktx.ScalarCoercion
 import com.xs0.gqlktx.schema.builder.ResolvedName
 import com.xs0.gqlktx.utils.NodeId
@@ -432,6 +433,14 @@ object BaselineExporter {
         return value.map { exportFloatNotNull(it, coercion) }
     }
 
+    fun exportObjectNode(value: ObjectNode?, coercion: ScalarCoercion): ObjectNode? {
+        return value
+    }
+
+    fun exportObjectNodeNotNull(value: ObjectNode, coercion: ScalarCoercion): ObjectNode {
+        return value
+    }
+
     val importSet = setOf("com.xs0.gqlktx.codegen" to "BaselineExporter")
 
     fun codeGenInfo(name: ResolvedName, gen: CodeGen<*, *>, returnTypeNN: String = "Any", extraImports: Set<Pair<String, String>> = emptySet()): OutputExportCodeGenInfo {
@@ -450,6 +459,7 @@ object BaselineExporter {
             funReturnType = if (isNullable) returnTypeNN + "?" else returnTypeNN,
             funReturnTypeNN = returnTypeNN,
             funIsSuspending = false,
+            funHasContext = false,
             gen.statePackage,
             "BaselineExporter.export$funName(VALUE, coercion)",
             emptySet(), // we don't generate

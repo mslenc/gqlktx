@@ -3,6 +3,7 @@ package com.xs0.gqlktx
 import com.xs0.gqlktx.dom.Value
 import com.xs0.gqlktx.dom.ValueBool
 import com.xs0.gqlktx.dom.ValueNumber
+import com.xs0.gqlktx.dom.ValueObject
 import com.xs0.gqlktx.dom.ValueString
 import java.time.Instant
 import java.util.regex.Pattern
@@ -147,5 +148,12 @@ object ScalarUtils {
         }
 
         throw ValidationException("Expected a valid Instant string in format \"YYYY-MM-DDThh:mm:ssZ\"")
+    }
+
+    fun validateJsonObject(value: Value): ValueObject {
+        if (value !is ValueObject)
+            throw ValidationException("Expected an object value")
+
+        return value
     }
 }

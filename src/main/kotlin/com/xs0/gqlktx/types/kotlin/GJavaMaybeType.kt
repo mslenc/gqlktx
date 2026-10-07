@@ -68,4 +68,8 @@ data class GJavaMaybeType<CTX: Any>(override val type: KType, val innerType: GJa
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return innerType.suspendingOutput
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return innerType.hasContext
+    }
 }

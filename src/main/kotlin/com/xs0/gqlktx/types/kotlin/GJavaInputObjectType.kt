@@ -85,4 +85,8 @@ data class GJavaInputObjectType<CTX: Any>(override val name: ResolvedName, overr
     override fun anythingSuspends(gen: CodeGen<*, CTX>): Boolean {
         return info.props.any { gen.schema.getJavaType(it.type.sourceType).suspendingOutput }
     }
+
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return info.props.any { gen.schema.getJavaType(it.type.sourceType).hasContext }
+    }
 }

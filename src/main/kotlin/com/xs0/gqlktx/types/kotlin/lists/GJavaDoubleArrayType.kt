@@ -64,6 +64,10 @@ data class GJavaDoubleArrayType<CTX: Any>(override val gqlType: GType, override 
         return false
     }
 
+    override fun anythingHasContext(gen: CodeGen<*, CTX>): Boolean {
+        return false
+    }
+
     companion object {
         val NON_NULL_DOUBLE_TYPE = Double::class.nonNullType()
     }

@@ -108,8 +108,8 @@ class PackedIdListWriter(private val out: OutputStream) {
 
     fun writeChar(value: Char) {
         out.write(TB_CHAR)
-        out.write(value.toInt())
-        out.write(value.toInt() shr 8)
+        out.write(value.code)
+        out.write(value.code shr 8)
     }
 
     fun writeShort(value: Short) {

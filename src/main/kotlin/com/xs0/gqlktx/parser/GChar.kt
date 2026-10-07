@@ -66,12 +66,12 @@ internal object GChar {
 
     @JvmStatic
     fun isExponentStart(c: Int): Boolean {
-        return c == 'e'.toInt() || c == 'E'.toInt()
+        return c == 'e'.code || c == 'E'.code
     }
 
     @JvmStatic
     fun isPlusOrMinus(c: Int): Boolean {
-        return c == '+'.toInt() || c == '-'.toInt()
+        return c == '+'.code || c == '-'.code
     }
 
     @JvmStatic
